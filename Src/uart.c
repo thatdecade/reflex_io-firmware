@@ -2,6 +2,7 @@
 #include "stdbool.h"
 #include "error_handler.h"
 #include "config.h"
+#include "debug_leds.h"
 
 #define RS485_CK_DR_PINS_B (GPIO_PIN_2 | GPIO_PIN_7 | GPIO_PIN_9 | GPIO_PIN_13)
 #define RS485_TX_DR_PINS_B (GPIO_PIN_0 | GPIO_PIN_14 | GPIO_PIN_6)
@@ -121,7 +122,12 @@ void uart_init() {
     uart_handles[Comport_Right] = &huart2_u_r;
 
     // Wait for all panel boards marked as connected to signal their readiness
-    while (!ALL_INITIALIZED);
+    //while (!ALL_INITIALIZED);
+
+    // Turn off LEDs after init
+    DBG_LED1_OFF();
+    DBG_LED2_OFF();
+    DBG_LED3_OFF();
 }
 
 void uart_send(ComportId comport_id, uint8_t * data_ptr, uint16_t data_len) {

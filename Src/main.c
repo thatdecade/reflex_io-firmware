@@ -11,6 +11,8 @@
 #include "tusb_config.h"
 #include "tusb.h"
 #include "tusb_hid.h"
+#include "config_mode.h"
+#include "profile_config.h"
 
 #define USB_HID_PACKET_SIZE_BYTES (64U)
 #define BYTES_PER_SEGMENT (64U)
@@ -22,6 +24,9 @@
 #define SENSOR_RESPONSE_LEN (8U)
 
 #define COMPLETE_FRAME (0xFFFF)
+
+volatile ErrorCode Panic_Error = 0;
+volatile uint32_t Panic_Data = 0;
 
 uint8_t sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
 uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
@@ -35,6 +40,8 @@ static void init_gpio(void);
 static void init();
 static void run();
 static void test();
+static void process_hid_packet(void);
+static inline void process_led_data(uint8_t *packet);
 
 static inline void send_request_sensors() {
     Request req = request_create(Command_Request_Sensors);
@@ -99,32 +106,63 @@ static inline void send_process_led_segment(uint8_t panel, uint8_t * data_ptr) {
     msgbus_send_request(req);
 }
 
-static inline void process_led_data() {
+
+static void process_hid_packet(void) {
+    uint8_t *packet = usb_get_packet();
+    if (packet == NULL) {
+        return;
+    }
+    
+    // First, use the config-mode filter to check for enter/exit packets.
+    ConfigMode mode = packet_filter_for_config_mode(packet);
+    if (mode != CONFIG_MODE_NORMAL) {
+        // Either the "enter" or "exit" magic packet was received.
+        set_config_mode(mode);
+        return;
+    }
+    
+    // Process LED Data or Config Packets
+    if (!is_config_mode()) {
+        process_led_data(packet);
+    }
+    else // is_config_mode
+        DBG_LED2_TOGGLE(); // Rapid blink comm LEDs
+        
+        uint8_t header = packet[0];
+        if (header == PROFILE_PUSH_PACKET) {
+            // Bytes 1–32 contain sensor thresholds/hysteresis data and bytes 33–36 the panel keys.
+            // Save this configuration using the profile_config module.
+            HAL_StatusTypeDef status = profile_config_save(packet + 1);
+        } else if (header == PROFILE_READ_PACKET) {
+            // Prepare a reply packet with header 0xF1 and profile data read from EEPROM.
+            uint8_t reply[64] = {0};
+            reply[0] = 0xF1;
+            profile_config_read(reply + 1);
+            tud_hid_report(USB_SEND_REPORT_ID, reply, 64);
+        }
+    }
+}
+
+static inline void process_led_data(uint8_t *packet) {
     static uint16_t segments_received = 0x0000;
     static uint8_t led_buffer[LED_ARRAY_SIZE];
     static uint8_t previous_frame = 0xFF;
-
+    
+    // If the previous full frame has been received, commit the LED data.
     if (segments_received == COMPLETE_FRAME) {
         DBG_LED3_ON();
         segments_received = 0x0000;
         send_commit_LEDs();
     }
-
-    uint8_t * packet = usb_get_packet();
-
-    if (packet == NULL) {
-        return;
-    }
-
-    uint8_t header = packet[0];
+    
+    uint8_t header  = packet[0];
     last_usb_header = header;
-    uint8_t panel = (header >> 6) & 0x03;
+    uint8_t panel   = (header >> 6) & 0x03;
     uint8_t segment = (header >> 4) & 0x03;
-    uint8_t frame = header & 0x0F;
-
-    uint16_t buffer_offset = 
-        panel * BYTES_PER_PANEL + segment * BYTES_PER_SEGMENT;
-
+    uint8_t frame   = header & 0x0F;
+    
+    uint16_t buffer_offset = panel * BYTES_PER_PANEL + segment * BYTES_PER_SEGMENT;
+    
     for (uint8_t i = 0; i < USB_HID_PACKET_SIZE_BYTES; i++) {
         led_buffer[i + buffer_offset] = packet[i];
     }
@@ -137,7 +175,6 @@ static inline void process_led_data() {
     segments_received |= (1 << (panel * PANELS_PER_PLATFORM + segment));
     send_process_led_segment(panel, led_buffer + buffer_offset);
 }
-
 
 int main(void){
     init();
@@ -156,40 +193,40 @@ static void init() {
     DBG_LED1_ON();
 }
 
-static void run() {
+static void run(void) {
     send_request_sensors();
-
+    
     while (1) {
-        // Process any interrupt flags set since last loop
+        // Process any pending messages from the internal (panel-to-panel) comms.
         msgbus_process_flags();
-      
-        // If there's a new command response to process, do that
+        
         if (msgbus_have_pending_response()) {
-            Response * resp = msgbus_get_pending_response();
-          
+            Response *resp = msgbus_get_pending_response();
             switch (resp->request_command) {
                 case Command_Request_Sensors:
-                    // Currently Request_Sensors is the only command that
-                    // responds with data from the panel board
                     process_sensor_data(resp);
                     break;
+                // Add other command responses if needed.
             }
         }
-
-        // Send an update of the latest sensor readings over USB
-        send_sensor_update_usb();
-
-        // If we've received LED data over USB since last loop, process that,
-        // and send it where it's got to go
-        process_led_data();
-
-        // Request more sensor updates, always
+        
+        // Instead of directly processing LED data, process any incoming USB HID packets.
+        // This will filter out config packets and process profile commands if in config mode.
+        process_hid_packet();
+        
+        // Only send sensor data over USB if we are in normal (non-config) mode.
+        if (!is_config_mode()) {
+            send_sensor_update_usb();
+        }
+        
+        // Always keep requesting sensor data.
         send_request_sensors();
         
-        // Let TinyUSB process its interrupt flags
+        // Let the TinyUSB stack process USB events.
         tud_task();
     }
 }
+
 
 static void test() {
     // usb comms test
