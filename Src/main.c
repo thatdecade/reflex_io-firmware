@@ -114,7 +114,7 @@ static void process_hid_packet(void) {
     }
     
     // First, use the config-mode filter to check for enter/exit packets.
-    ConfigMode mode = packet_filter_for_config_mode(packet);
+    config_modes_t mode = packet_filter_for_config_mode(packet);
     if (mode != CONFIG_MODE_NORMAL) {
         // Either the "enter" or "exit" magic packet was received.
         set_config_mode(mode);
@@ -126,11 +126,12 @@ static void process_hid_packet(void) {
         process_led_data(packet);
     }
     else // is_config_mode
+    {
         DBG_LED2_TOGGLE(); // Rapid blink comm LEDs
         
         uint8_t header = packet[0];
         if (header == PROFILE_PUSH_PACKET) {
-            // Bytes 1–32 contain sensor thresholds/hysteresis data and bytes 33–36 the panel keys.
+            // Bytes 1ï¿½32 contain sensor thresholds/hysteresis data and bytes 33ï¿½36 the panel keys.
             // Save this configuration using the profile_config module.
             HAL_StatusTypeDef status = profile_config_save(packet + 1);
         } else if (header == PROFILE_READ_PACKET) {

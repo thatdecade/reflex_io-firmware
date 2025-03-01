@@ -49,6 +49,9 @@ Src/system_stm32f3xx.c \
 Src/uart.c \
 Src/tusb_descriptors.c \
 Src/tusb_hid_impl.c \
+Src/profile_config.c \
+Src/config_mode.c \
+Src/eeprom_emul.c \
 Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pcd.c \
 Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pcd_ex.c \
 Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_tim.c \

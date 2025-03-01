@@ -25,13 +25,13 @@ static const uint8_t exit_config_magic[64] = {
     0xb7, 0x23, 0x8b, 0x33, 0xbd, 0xd6, 0x5e, 0xa6
 };
 
-static ConfigMode current_mode = CONFIG_MODE_NORMAL;
+static config_modes_t current_mode = CONFIG_MODE_NORMAL;
 
 bool is_config_mode(void) {
     return (current_mode == CONFIG_MODE_ENTER);
 }
 
-void set_config_mode(ConfigMode mode) {
+void set_config_mode(config_modes_t mode) {
     if (mode == CONFIG_MODE_ENTER) {
         current_mode = CONFIG_MODE_ENTER;
     } else if (mode == CONFIG_MODE_EXIT) {
@@ -41,7 +41,7 @@ void set_config_mode(ConfigMode mode) {
     }
 }
 
-ConfigMode packet_filter_for_config_mode(const uint8_t *packet) {
+config_modes_t packet_filter_for_config_mode(const uint8_t *packet) {
     if (memcmp(packet, enter_config_magic, 64) == 0) {
         return CONFIG_MODE_ENTER;
     }

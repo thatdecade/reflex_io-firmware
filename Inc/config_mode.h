@@ -9,7 +9,7 @@ extern "C" {
 #endif
 
 // Global functions for configuration mode control.
-.
+
 typedef enum {
     CONFIG_MODE_NORMAL = 0,
     CONFIG_MODE_ENTER  = 1,
@@ -22,9 +22,9 @@ typedef enum {
 } config_packets_t;
 
 bool is_config_mode(void);
-void set_config_mode(ConfigMode mode);
+void set_config_mode(config_modes_t mode);
 
-ConfigMode packet_filter_for_config_mode(const uint8_t *packet);
+config_modes_t packet_filter_for_config_mode(const uint8_t *packet);
 
 #ifdef __cplusplus
 }

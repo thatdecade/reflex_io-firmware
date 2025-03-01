@@ -8,10 +8,10 @@
 
 
 // Change these if depending on what you've got plugged in
-#define PANEL_LEFT_CONNECTED  (1U) 
-#define PANEL_UP_CONNECTED    (1U) 
-#define PANEL_DOWN_CONNECTED  (1U)
-#define PANEL_RIGHT_CONNECTED (1U)
+#define PANEL_LEFT_CONNECTED  (0U) 
+#define PANEL_UP_CONNECTED    (0U) 
+#define PANEL_DOWN_CONNECTED  (0U)
+#define PANEL_RIGHT_CONNECTED (0U)
 
 extern uint8_t _panels_connected[4];
 

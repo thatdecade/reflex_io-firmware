@@ -17,8 +17,7 @@
  */
 FLASH_EraseInitTypeDef erase = {
     .TypeErase = FLASH_TYPEERASE_PAGES,
-    .Banks = FLASH_BANK_1,
-    .Page = (CONFIG_START_ADDR - 0x08000000) / CONFIG_PAGE_SIZE,
+    .PageAddress = CONFIG_START_ADDR,
     .NbPages = 1
 };
 
@@ -121,7 +120,7 @@ void epemul_read_config_data(uint8_t *data, uint32_t index, uint32_t size)
 {
     uint32_t offset = index * size;
     if (offset + size > CONFIG_PAGE_SIZE) {
-        // Out of range – handle error as needed.
+        // Out of range ï¿½ handle error as needed.
         return;
     }
 

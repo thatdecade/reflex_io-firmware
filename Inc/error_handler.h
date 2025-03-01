@@ -6,12 +6,10 @@
 
 typedef enum {
     Error_None                             = 0x0000,
-
     Error_Cortex_HardFault                 = 0x1001,
     Error_Cortex_MemManage                 = 0x1002,
     Error_Cortex_BusFault                  = 0x1003,
     Error_Cortex_UsageFault                = 0x1004,
-
     Error_HAL_RCC_OscConfig                = 0x1101,
     Error_HAL_RCC_ClockConfig              = 0x1102,
     Error_HAL_RCC_PeriphClockConfig        = 0x1103,
@@ -21,25 +19,21 @@ typedef enum {
     Error_HAL_UART_Init                    = 0x1107, 
     Error_HAL_UART_DeInit                  = 0x1108,
     Error_HAL_PCD_Init                     = 0x1109,
-
     Error_USB_USBD_Init                    = 0x1201,
     Error_USB_USBD_RegisterClass           = 0x1202,
     Error_USB_USBD_RegisterInterface       = 0x1203,
     Error_USB_USBD_Start                   = 0x1204,
     Error_USB_USBD_ConfWrongSpeed          = 0x1205,
-
     Error_App_UART_InvalidComport          = 0x2101,
-
     Error_App_MsgBus_InvalidComport        = 0x2201,
     Error_App_MsgBus_SendCpltInvalidStatus = 0x2202,
     Error_App_MsgBus_RecvCpltInvalidStatus = 0x2203,
     Error_App_MsgBus_RecvCpltNoAck         = 0x2204,
-
     Error_App_ReqQueue_QueueFull           = 0x2205
 } ErrorCode;
 
-volatile ErrorCode Panic_Error;
-volatile uint32_t Panic_Data;
+extern volatile ErrorCode Panic_Error;
+extern volatile uint32_t Panic_Data;
 
 static inline void error_loop() {
     while (1) {
@@ -59,6 +53,5 @@ static inline void error_panic(ErrorCode code) {
     Panic_Error = code;
     error_loop();
 }
-
 
 #endif

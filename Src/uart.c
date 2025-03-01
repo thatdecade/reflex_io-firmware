@@ -25,6 +25,7 @@
 #define PANEL_DOWN_INITIALIZED (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12))
 #define PANEL_RIGHT_INITIALIZED (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5))
 
+// Typo? should be (!PANEL_RIGHT_CONNECTED || PANEL_RIGHT_INITIALIZED )
 #define ALL_INITIALIZED (\
     (!PANEL_LEFT_CONNECTED || PANEL_LEFT_INITIALIZED) && \
     (!PANEL_UP_CONNECTED || PANEL_UP_INITIALIZED) && \
@@ -122,6 +123,7 @@ void uart_init() {
     uart_handles[Comport_Right] = &huart2_u_r;
 
     // Wait for all panel boards marked as connected to signal their readiness
+	//does not apply to v2 io board pcb
     //while (!ALL_INITIALIZED);
 
     // Turn off LEDs after init
