@@ -1,5 +1,6 @@
 {
-    "stm32-for-vscode.armToolchainPath": "",
-    "cortex-debug.armToolchainPath": "",
-    "stm32-for-vscode.makePath": "make"
+    "stm32-for-vscode.armToolchainPath": "C:\\sysgcc\\arm-eabi\\bin",
+    "cortex-debug.armToolchainPath": "C:\\sysgcc\\arm-eabi\\bin",
+    "stm32-for-vscode.makePath": "make",
+    "stm32-for-vscode.openOCDPath": "false",
 }

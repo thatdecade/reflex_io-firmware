@@ -1,0 +1,5 @@
+r
+loadbin build/io_firmware.bin, 0x08000000
+r
+g
+q

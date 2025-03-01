@@ -1,15 +1,20 @@
 {
   "configurations": [
     {
-      "showDevDebugOutput": true,
-      "cwd": "${workspaceRoot}",
-      "executable": "./build/io_firmware.elf",
+      "showDevDebugOutput": "raw",
+      "cwd": "",
+      "executable": "build/io_firmware.elf",
       "name": "Debug STM32",
       "request": "launch",
       "type": "cortex-debug",
-      "servertype": "stutil",
+      "servertype": "jlink",
+      "serverpath": "C:\\SEGGER\\JLink\\JLinkGDBServerCL.exe",
       "device": "STM32F303xC",
-      "svdFile": "${workspaceRoot}/STM32F303.svd"
+      "svdFile": "STM32F303.svd",
+      "toolchainPrefix": "arm-none-eabi",
+      "interface": "swd",
+      "runToEntryPoint": "main",
+      "preLaunchTask": "Compile and Flash",
     }
   ]
 }

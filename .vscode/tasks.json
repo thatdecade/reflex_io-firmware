@@ -1,33 +1,72 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    // for the documentation about the tasks.json format
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Make Firmware",
-            "type": "shell",
-            "command": "mingw32-make -j8 all TARGET=io_firmware OPT=\"-O2\" BINPATH=\"${env:VSARM}\/armcc\/bin\"",
-            "options": {
-                "cwd": "${workspaceRoot}"
-            }, 
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": []
-        },
-        {
-            "label": "Load Firmware",
-            "type": "shell",
-            "command": "st-flash write ./build/io_firmware.bin 0x08000000",
-            "options": {
-                "cwd": "${workspaceRoot}"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": []
-        }
-    ]
-  }
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Clean Firmware",
+      "type": "shell",
+      "command": "C:\\Ch\\bin\\make.exe",
+      "args": [
+        "clean"
+      ],
+      "options": {
+        "cwd": "${workspaceRoot}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Make Firmware",
+      "type": "shell",
+      "command": "C:\\Ch\\bin\\make.exe",
+      "args": [
+        "-j8",
+        "all",
+        "TARGET=io_firmware",
+        "OPT=-O2",
+        "BINPATH=/armcc/bin"
+      ],
+      "options": {
+        "cwd": "${workspaceRoot}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+    },
+    {
+      "label": "Load Firmware",
+      "type": "shell",
+      "command": "C:\\SEGGER\\JLink\\JLink.exe",
+      "args": [
+        "-device", "STM32F303CC",
+        "-if", "SWD",
+        "-speed", "4000",
+        "-CommanderScript", "${workspaceRoot}\\flash.jlink"
+      ],
+      "options": {
+        "cwd": "${workspaceRoot}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Compile and Flash",
+      "dependsOn": [
+        "Make Firmware",
+        "Load Firmware"
+      ],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Debug - Show Directory",
+      "type": "shell",
+      "command": "echo Current directory is && cd && dir",
+      "options": {
+        "cwd": "${workspaceRoot}"
+      }
+    }
+  ]
+}
