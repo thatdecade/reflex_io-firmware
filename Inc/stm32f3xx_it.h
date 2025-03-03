@@ -24,7 +24,7 @@
 
 #ifdef __cplusplus
  extern "C" {
-#endif 
+#endif
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -62,7 +62,6 @@ void DMA1_Channel4_IRQHandler(void);
 void DMA1_Channel5_IRQHandler(void);
 void DMA1_Channel6_IRQHandler(void);
 void DMA1_Channel7_IRQHandler(void);
-void USB_LP_CAN_RX0_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 
 /* USER CODE END EFP */
@@ -72,5 +71,3 @@ void USB_LP_CAN_RX0_IRQHandler(void);
 #endif
 
 #endif /* __STM32F3xx_IT_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -1,4 +1,27 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2025 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
 #include "main.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
 #include "stdbool.h"
 #include "uart.h"
 #include "commands.h"
@@ -14,16 +37,47 @@
 #include "config_mode.h"
 #include "profile_config.h"
 
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
 #define USB_HID_PACKET_SIZE_BYTES (64U)
 #define BYTES_PER_SEGMENT (64U)
 #define SEGMENTS_PER_PANEL (4U)
-#define BYTES_PER_PANEL (BYTES_PER_SEGMENT * SEGMENTS_PER_PANEL)
 #define PANELS_PER_PLATFORM (4U)
-#define LED_ARRAY_SIZE (BYTES_PER_PANEL * PANELS_PER_PLATFORM)
 
 #define SENSOR_RESPONSE_LEN (8U)
 
 #define COMPLETE_FRAME (0xFFFF)
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+#define BYTES_PER_PANEL (BYTES_PER_SEGMENT * SEGMENTS_PER_PANEL)
+#define LED_ARRAY_SIZE (BYTES_PER_PANEL * PANELS_PER_PLATFORM)
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+USART_HandleTypeDef husart1;
+USART_HandleTypeDef husart2;
+USART_HandleTypeDef husart3;
+DMA_HandleTypeDef hdma_usart1_rx;
+DMA_HandleTypeDef hdma_usart1_tx;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
+DMA_HandleTypeDef hdma_usart3_rx;
+DMA_HandleTypeDef hdma_usart3_tx;
+
+PCD_HandleTypeDef hpcd_USB_FS;
+
+/* USER CODE BEGIN PV */
 
 volatile ErrorCode Panic_Error = 0;
 volatile uint32_t Panic_Data = 0;
@@ -34,14 +88,25 @@ uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
 volatile uint8_t last_usb_header;
 volatile uint32_t packets_fetched = 0;
 
-static void init_system_clock(void);
-static void init_gpio(void);
+/* USER CODE END PV */
 
-static void init();
-static void run();
-static void test();
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
+static void MX_USART1_Init(void);
+static void MX_USART2_Init(void);
+static void MX_USART3_Init(void);
+static void MX_USB_PCD_Init(void);
+/* USER CODE BEGIN PFP */
+
 static void process_hid_packet(void);
 static inline void process_led_data(uint8_t *packet);
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
 
 static inline void send_request_sensors() {
     Request req = request_create(Command_Request_Sensors);
@@ -106,8 +171,7 @@ static inline void send_process_led_segment(uint8_t panel, uint8_t * data_ptr) {
     msgbus_send_request(req);
 }
 
-
-static void process_hid_packet(void) {
+static void process_hid_packet() {
     uint8_t *packet = usb_get_packet();
     if (packet == NULL) {
         return;
@@ -123,17 +187,19 @@ static void process_hid_packet(void) {
     
     // Process LED Data or Config Packets
     if (!is_config_mode()) {
+         // not config mode
         process_led_data(packet);
     }
-    else // is_config_mode
+    else 
     {
+        // is config mode
         DBG_LED2_TOGGLE(); // Rapid blink comm LEDs
         
         uint8_t header = packet[0];
         if (header == PROFILE_PUSH_PACKET) {
             // Bytes 1�32 contain sensor thresholds/hysteresis data and bytes 33�36 the panel keys.
             // Save this configuration using the profile_config module.
-            HAL_StatusTypeDef status = profile_config_save(packet + 1);
+            /*HAL_StatusTypeDef status = */ (void)profile_config_save(packet + 1);
         } else if (header == PROFILE_READ_PACKET) {
             // Prepare a reply packet with header 0xF1 and profile data read from EEPROM.
             uint8_t reply[64] = {0};
@@ -177,27 +243,52 @@ static inline void process_led_data(uint8_t *packet) {
     send_process_led_segment(panel, led_buffer + buffer_offset);
 }
 
-int main(void){
-    init();
-    //test();
-    run();
-}
+/* USER CODE END 0 */
 
-static void init() {
-    HAL_Init();
-    init_gpio();
-    init_system_clock();
-    uart_init();
-    msgbus_init();
-    tusb_init();
-    
-    DBG_LED1_ON();
-}
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+  /* USER CODE BEGIN 1 */
 
-static void run(void) {
-    send_request_sensors();
-    
-    while (1) {
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_USART1_Init();
+  MX_USART2_Init();
+  MX_USART3_Init();
+  MX_USB_PCD_Init();
+  /* USER CODE BEGIN 2 */
+  uart_init();
+  msgbus_init();
+  tusb_init();
+  DBG_LED1_ON();
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
         // Process any pending messages from the internal (panel-to-panel) comms.
         msgbus_process_flags();
         
@@ -225,170 +316,340 @@ static void run(void) {
         
         // Let the TinyUSB stack process USB events.
         tud_task();
-    }
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
 }
 
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
-static void test() {
-    // usb comms test
-    while (1) {
-        tud_task();
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
 
-        send_sensor_update_usb();
-        for (uint8_t i = 0; i < 32; i++) {
-            usb_sensor_buffer[i] = i;
-        }
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-        uint8_t * packet = usb_get_packet();
-
-        if (packet == NULL) {
-            DBG_LED3_OFF();
-            continue;
-        }
-
-        uint8_t all_good = true;
-        for (uint8_t i = 0; i < 64; i++) {
-            if (packet[i] != i) {
-                all_good = false;
-                break;
-            }
-        }
-
-        if (all_good) {
-            DBG_LED3_ON();
-        }
-    }
-
-    while(1);
-
-    ComportId port_1 = Comport_Down;
-    ComportId port_2 = Comport_Right;
-
-    // Communcation tests for 2 ports
-    if (commtest_dual_receive_2bytes(port_1, port_2)
-        && commtest_dual_receive_64bytes(port_1, port_2)
-        && commtest_dual_double_values(port_1, port_2)) {
-        // If they all passed, turn LED 3 on
-        DBG_LED3_ON();
-    } else {
-        DBG_LED3_OFF();
-    }
-
-    // test LEDs on panel, hardcoded pattern
-    ledtests_hardcoded_LEDs(Comport_Right);
-    msgbus_wait_for_idle(Comport_Right);
-
-    // Turn this LED off again to show that we got to this point
-    DBG_LED3_OFF();
-
-    HAL_Delay(1000);
-
-    // Ensure comms still work after having dealt with LEDs
-    if (commtest_receive_2bytes(Comport_Right)) {
-        DBG_LED3_ON();
-    } else {
-        DBG_LED3_OFF();
-    }
-
-    ledtests_loop_color_wheel(Comport_Right);
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB|RCC_PERIPHCLK_USART1
+                              |RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_USART3;
+  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_SYSCLK;
+  PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_SYSCLK;
+  PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_SYSCLK;
+  PeriphClkInit.USBClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
-static void init_system_clock() {
-    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
-    RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-    RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_Init(void)
+{
 
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
-    RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-    RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  /* USER CODE BEGIN USART1_Init 0 */
 
-    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-        error_panic(Error_HAL_RCC_OscConfig);
-    }
+  /* USER CODE END USART1_Init 0 */
 
-    RCC_ClkInitStruct.ClockType = \
-        RCC_CLOCKTYPE_HCLK \
-        | RCC_CLOCKTYPE_SYSCLK \
-        | RCC_CLOCKTYPE_PCLK1 \
-        | RCC_CLOCKTYPE_PCLK2;
-    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
-    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
+  /* USER CODE BEGIN USART1_Init 1 */
 
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
-        error_panic(Error_HAL_RCC_ClockConfig);
-    }
+  /* USER CODE END USART1_Init 1 */
+  husart1.Instance = USART1;
+  husart1.Init.BaudRate = 3000000;
+  husart1.Init.WordLength = USART_WORDLENGTH_8B;
+  husart1.Init.StopBits = USART_STOPBITS_2;
+  husart1.Init.Parity = USART_PARITY_NONE;
+  husart1.Init.Mode = USART_MODE_TX_RX;
+  husart1.Init.CLKPolarity = USART_POLARITY_LOW;
+  husart1.Init.CLKPhase = USART_PHASE_1EDGE;
+  husart1.Init.CLKLastBit = USART_LASTBIT_DISABLE;
+  if (HAL_USART_Init(&husart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
 
-    PeriphClkInit.PeriphClockSelection = \
-        RCC_PERIPHCLK_USB \
-        | RCC_PERIPHCLK_USART1 \
-        | RCC_PERIPHCLK_USART2 \
-        | RCC_PERIPHCLK_USART3;
-    PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
-    PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-    PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
-    PeriphClkInit.USBClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
+  /* USER CODE END USART1_Init 2 */
 
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
-        error_panic(Error_HAL_RCC_PeriphClockConfig);
-    }
 }
 
-static void init_gpio() {
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_Init(void)
+{
 
-    // -- Write relevant GPIO pins LOW
+  /* USER CODE BEGIN USART2_Init 0 */
 
-    // A 0,1,6,7: Debug pins
-    HAL_GPIO_WritePin(
-        GPIOA, 
-        GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_6 | GPIO_PIN_7,
-        GPIO_PIN_RESET
-    );
+  /* USER CODE END USART2_Init 0 */
 
-    // C 13,14,15: Status LEDs
-    HAL_GPIO_WritePin(
-        GPIOC,
-        GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15,
-        GPIO_PIN_RESET
-    );
+  /* USER CODE BEGIN USART2_Init 1 */
 
-    // -- configure pin modes
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
+  /* USER CODE END USART2_Init 1 */
+  husart2.Instance = USART2;
+  husart2.Init.BaudRate = 3000000;
+  husart2.Init.WordLength = USART_WORDLENGTH_8B;
+  husart2.Init.StopBits = USART_STOPBITS_2;
+  husart2.Init.Parity = USART_PARITY_NONE;
+  husart2.Init.Mode = USART_MODE_TX_RX;
+  husart2.Init.CLKPolarity = USART_POLARITY_LOW;
+  husart2.Init.CLKPhase = USART_PHASE_1EDGE;
+  husart2.Init.CLKLastBit = USART_LASTBIT_DISABLE;
+  if (HAL_USART_Init(&husart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
 
-    // A 0,1,6,7: Debug Pins (outputs)
-    GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_6 | GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  /* USER CODE END USART2_Init 2 */
 
-    // C 13,14,15: Status LEDS (outputs)
-    GPIO_InitStruct.Pin = GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-    
-    // USB GPIO Configuration    
-    // PA11 -> USB_DM
-    // PA12 -> USB_DP 
-    GPIO_InitStruct.Pin = GPIO_PIN_11 | GPIO_PIN_12;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF14_USB;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+}
 
-    __HAL_RCC_USB_CLK_ENABLE();
+/**
+  * @brief USART3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART3_Init(void)
+{
+
+  /* USER CODE BEGIN USART3_Init 0 */
+
+  /* USER CODE END USART3_Init 0 */
+
+  /* USER CODE BEGIN USART3_Init 1 */
+
+  /* USER CODE END USART3_Init 1 */
+  husart3.Instance = USART3;
+  husart3.Init.BaudRate = 3000000;
+  husart3.Init.WordLength = USART_WORDLENGTH_8B;
+  husart3.Init.StopBits = USART_STOPBITS_2;
+  husart3.Init.Parity = USART_PARITY_NONE;
+  husart3.Init.Mode = USART_MODE_TX_RX;
+  husart3.Init.CLKPolarity = USART_POLARITY_LOW;
+  husart3.Init.CLKPhase = USART_PHASE_1EDGE;
+  husart3.Init.CLKLastBit = USART_LASTBIT_DISABLE;
+  if (HAL_USART_Init(&husart3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART3_Init 2 */
+
+  /* USER CODE END USART3_Init 2 */
+
+}
+
+/**
+  * @brief USB Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USB_PCD_Init(void)
+{
+
+  /* USER CODE BEGIN USB_Init 0 */
+
+  /* USER CODE END USB_Init 0 */
+
+  /* USER CODE BEGIN USB_Init 1 */
+
+  /* USER CODE END USB_Init 1 */
+  hpcd_USB_FS.Instance = USB;
+  hpcd_USB_FS.Init.dev_endpoints = 8;
+  hpcd_USB_FS.Init.speed = PCD_SPEED_FULL;
+  hpcd_USB_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+  hpcd_USB_FS.Init.low_power_enable = DISABLE;
+  hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
+  if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USB_Init 2 */
+
+  /* USER CODE END USB_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Channel2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+  /* DMA1_Channel3_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+  /* DMA1_Channel4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+  /* DMA1_Channel5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+  /* DMA1_Channel6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
+  /* DMA1_Channel7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(USART2_TX0_DR_GPIO_Port, USART2_TX0_DR_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, USART3_TX_DR_Pin|USART3_RX_DR_Pin|USART1_TX_DR_Pin|USART1_RX_DR_Pin
+                          |USART2_RX1_DR_Pin|USART2_TX1_DR_Pin|USART2_RX0_DR_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PC13 PC14 PC15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA0 PA1 PA6 PA7
+                           PA13 PA14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_6|GPIO_PIN_7
+                          |GPIO_PIN_13|GPIO_PIN_14;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : USART2_TX0_DR_Pin */
+  GPIO_InitStruct.Pin = USART2_TX0_DR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(USART2_TX0_DR_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : USART3_TX_DR_Pin USART3_RX_DR_Pin USART1_TX_DR_Pin USART1_RX_DR_Pin
+                           USART2_RX1_DR_Pin USART2_TX1_DR_Pin USART2_RX0_DR_Pin */
+  GPIO_InitStruct.Pin = USART3_TX_DR_Pin|USART3_RX_DR_Pin|USART1_TX_DR_Pin|USART1_RX_DR_Pin
+                          |USART2_RX1_DR_Pin|USART2_TX1_DR_Pin|USART2_RX0_DR_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB2 PB13 PB7 PB9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_13|GPIO_PIN_7|GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF15_EVENTOUT;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB3 PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_3|GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Alternate = GPIO_AF15_EVENTOUT;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+}
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  __disable_irq();
+  while (1)
+  {
+        DBG_LED3_TOGGLE();
+        HAL_Delay(250);
+  }
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
-void assert_failed(char *file, uint32_t line){ }
-#endif
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
