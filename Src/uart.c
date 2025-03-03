@@ -25,11 +25,12 @@
 #define PANEL_DOWN_INITIALIZED (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12))
 #define PANEL_RIGHT_INITIALIZED (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5))
 
+// Typo? should be (!PANEL_RIGHT_CONNECTED || PANEL_RIGHT_INITIALIZED )
 #define ALL_INITIALIZED (\
     (!PANEL_LEFT_CONNECTED || PANEL_LEFT_INITIALIZED) && \
     (!PANEL_UP_CONNECTED || PANEL_UP_INITIALIZED) && \
     (!PANEL_DOWN_CONNECTED || PANEL_DOWN_INITIALIZED) && \
-    (!PANEL_RIGHT_CONNECTED || PANEL_RIGHT_INITIALIZED) \
+    (!PANEL_RIGHT_CONNECTED || PANEL_DOWN_INITIALIZED) \
 )
 
 /**
@@ -42,9 +43,9 @@
  * which time they'll write this line high.
  */
 
-USART_HandleTypeDef huart1_l; // Left
-USART_HandleTypeDef huart2_u_r; // Up, Right
-USART_HandleTypeDef huart3_d; // Down
+UART_HandleTypeDef huart1_l; // Left
+UART_HandleTypeDef huart2_u_r; // Up, Right
+UART_HandleTypeDef huart3_d; // Down
 
 DMA_HandleTypeDef hdma_usart1_l_rx; // Left
 DMA_HandleTypeDef hdma_usart1_l_tx;
@@ -61,13 +62,14 @@ static ReceiveCompleteHandler receive_complete_handler = NULL;
 
 static void init_gpio();
 static void init_rs485();
-static void init_periph(USART_HandleTypeDef *, USART_TypeDef *, IRQn_Type);
+static void init_periph(UART_HandleTypeDef *, USART_TypeDef *, IRQn_Type);
+static void init_dma_interrupts();
 
-static USART_HandleTypeDef * get_uart_handle(ComportId);
+static UART_HandleTypeDef * get_uart_handle(ComportId);
 
-static USART_HandleTypeDef * uart_handles[COMPORT_ID_MAX + 1];
+static UART_HandleTypeDef * uart_handles[COMPORT_ID_MAX + 1];
 
-static inline USART_HandleTypeDef * get_uart_handle(ComportId comport_id) {
+static inline UART_HandleTypeDef * get_uart_handle(ComportId comport_id) {
     if (comport_id > COMPORT_ID_MAX) {
         error_panic_data(Error_App_UART_InvalidComport, comport_id);
     }
@@ -76,34 +78,37 @@ static inline USART_HandleTypeDef * get_uart_handle(ComportId comport_id) {
 }
 
 static inline HAL_StatusTypeDef receive_dma(
-    USART_HandleTypeDef * huart,
+    UART_HandleTypeDef * huart,
     uint8_t * dest_ptr,
     uint16_t len
 ) {
-    if (huart->State != HAL_USART_STATE_READY) {
-        HAL_USART_Abort(huart);
+    // If for whatever reason HAL thinks we're not ready, abort ongoing receive.
+    // I'm pretty confident in our own state machine.
+    if (huart->RxState != HAL_UART_STATE_READY) {
+        HAL_UART_AbortReceive(huart);
     }
-    return HAL_USART_Receive_DMA(huart, dest_ptr, len);
+
+    return HAL_UART_Receive_DMA(huart, dest_ptr, len);
 }
 
-
 static inline HAL_StatusTypeDef transmit_dma(
-    USART_HandleTypeDef * huart,
+    UART_HandleTypeDef * huart,
     uint8_t * source_ptr,
     uint16_t len
 ) {
     // If for whatever reason HAL thinks we're not ready, aborting ongoing
     // transmit. I'm pretty confident in our own state machine.
-    if (huart->State != HAL_USART_STATE_READY) {
-        HAL_USART_Abort(huart);
+    if (huart->gState != HAL_UART_STATE_READY) {
+        HAL_UART_AbortTransmit(huart);
     }
     
-    return HAL_USART_Transmit_DMA(huart, source_ptr, len);
+    return HAL_UART_Transmit_DMA(huart, source_ptr, len);
 }
 
 void uart_init() {
     init_gpio();
     init_rs485();
+    init_dma_interrupts();
 
     // Left
     init_periph(&huart1_l, USART1, USART1_IRQn);
@@ -128,7 +133,7 @@ void uart_init() {
 }
 
 void uart_send(ComportId comport_id, uint8_t * data_ptr, uint16_t data_len) {
-    USART_HandleTypeDef * huart = get_uart_handle(comport_id);
+    UART_HandleTypeDef * huart = get_uart_handle(comport_id);
     HAL_StatusTypeDef result = transmit_dma(huart, data_ptr, data_len);
     
     if (result != HAL_OK) {
@@ -137,7 +142,7 @@ void uart_send(ComportId comport_id, uint8_t * data_ptr, uint16_t data_len) {
 }
 
 void uart_receive(ComportId comport_id, uint8_t * data_ptr, uint16_t data_len) {
-    USART_HandleTypeDef * huart = get_uart_handle(comport_id);
+    UART_HandleTypeDef * huart = get_uart_handle(comport_id);
     HAL_StatusTypeDef result = receive_dma(huart, data_ptr, data_len);
     
     if (result != HAL_OK) {
@@ -146,7 +151,7 @@ void uart_receive(ComportId comport_id, uint8_t * data_ptr, uint16_t data_len) {
 }
 
 void uart_abort_receive(ComportId comport_id) {
-    HAL_USART_Abort(get_uart_handle(comport_id));
+    HAL_UART_AbortReceive(get_uart_handle(comport_id));
 }
 
 void uart_set_on_send_complete_handler(SendCompleteHandler handler) {
@@ -166,9 +171,9 @@ void uart_connect_port(ComportId comport_id) {
 
     HAL_NVIC_DisableIRQ(USART2_IRQn);
 
-    HAL_USART_MspDeInit(&huart2_u_r);
+    HAL_UART_MspDeInit(&huart2_u_r);
     
-    HAL_StatusTypeDef de_init_result = HAL_USART_DeInit(&huart2_u_r);
+    HAL_StatusTypeDef de_init_result = HAL_UART_DeInit(&huart2_u_r);
 
     if (de_init_result != HAL_OK) {
         error_panic_data(Error_HAL_UART_DeInit, de_init_result);
@@ -217,7 +222,7 @@ void uart_connect_port(ComportId comport_id) {
     }
     
     init_periph(&huart2_u_r, USART2, USART2_IRQn);
-    HAL_USART_MspInit(&huart2_u_r);
+    HAL_UART_MspInit(&huart2_u_r);
     switched_comport = comport_id;
 }
 
@@ -301,14 +306,59 @@ static void init_rs485() {
     HAL_GPIO_WritePin(GPIOB, RS485_CK_DR_PINS_B, GPIO_PIN_RESET);
 }
 
-static void init_periph(USART_HandleTypeDef *huart, USART_TypeDef *usart, IRQn_Type irqn) {
+static void init_periph(
+    UART_HandleTypeDef *huart, USART_TypeDef *usart, IRQn_Type irqn) {
+
+    huart->Instance = usart;
+    huart->Init.BaudRate = 3000000;
+    huart->Init.WordLength = UART_WORDLENGTH_8B;
+    huart->Init.StopBits = UART_STOPBITS_2;
+    huart->Init.Parity = UART_PARITY_NONE;
+    huart->Init.Mode = UART_MODE_TX_RX;
+    huart->Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart->Init.OverSampling = UART_OVERSAMPLING_8;
+    huart->Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE; // DIS
+    huart->AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+
     HAL_NVIC_SetPriority(irqn, 0, 0);
     HAL_NVIC_EnableIRQ(irqn);
+
+    if (HAL_UART_Init(huart) != HAL_OK){
+        error_panic_data(Error_HAL_UART_Init, (uint32_t)usart);
+    }
 }
 
-void HAL_UART_TxCpltCallback(USART_HandleTypeDef *huart) {
+static void init_dma_interrupts() {
+    __HAL_RCC_DMA1_CLK_ENABLE();
+
+    // USART3_TX (Down)
+    HAL_NVIC_SetPriority(DMA1_Channel2_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel2_IRQn);
+
+    // USART3_RX (Down) 
+    HAL_NVIC_SetPriority(DMA1_Channel3_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel3_IRQn);
+
+    // USART1_TX (Left)
+    HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+
+    // USART1_RX (Left)
+    HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
+
+    // USART2_RX (Up, Right)
+    HAL_NVIC_SetPriority(DMA1_Channel6_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel6_IRQn);
+
+    // USART2_TX (Up, Right)
+    HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
     if (send_complete_handler == NULL) return;
-    HAL_USART_Abort(huart);
+    HAL_UART_AbortTransmit(huart);
 
     if (huart == &huart1_l) {
         send_complete_handler(Comport_Left);
@@ -319,9 +369,9 @@ void HAL_UART_TxCpltCallback(USART_HandleTypeDef *huart) {
     }
 }
 
-void HAL_UART_RxCpltCallback(USART_HandleTypeDef *huart) {
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (receive_complete_handler == NULL) return;
-    HAL_USART_Abort(huart);
+    HAL_UART_AbortReceive(huart);
 
     if (huart == &huart1_l) {
         receive_complete_handler(Comport_Left);
