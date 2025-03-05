@@ -6,12 +6,29 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2016 STMicroelectronics.
-  * All rights reserved.
+  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
   *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
+  * Redistribution and use in source and binary forms, with or without modification,
+  * are permitted provided that the following conditions are met:
+  *   1. Redistributions of source code must retain the above copyright notice,
+  *      this list of conditions and the following disclaimer.
+  *   2. Redistributions in binary form must reproduce the above copyright notice,
+  *      this list of conditions and the following disclaimer in the documentation
+  *      and/or other materials provided with the distribution.
+  *   3. Neither the name of STMicroelectronics nor the names of its contributors
+  *      may be used to endorse or promote products derived from this software
+  *      without specific prior written permission.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
   */
@@ -30,7 +47,7 @@
   * @{
   */
 
-/* Note: Devices of STM32F3 series embed 1 out of 2 different comparator IP.   */
+/* Note: Devices of STM32F3 serie embed 1 out of 2 different comparator IP.   */
 /*       - STM32F30x, STM32F31x, STM32F32x, STM32F33x, STM32F35x, STM32F39x:  */
 /*         COMP IP from 3 to 7 instances and other specific features          */
 /*         (comparator output blanking, ...) (refer to reference manual).     */
@@ -71,7 +88,7 @@
   ((__POWER_MODE__) == LL_COMP_POWERMODE_HIGHSPEED)
 #endif
 
-/* Note: On this STM32 series, comparator input plus parameters are            */
+/* Note: On this STM32 serie, comparator input plus parameters are            */
 /*       the same on all COMP instances.                                      */
 /*       However, comparator instance kept as macro parameter for             */
 /*       compatibility with other STM32 families.                             */
@@ -765,7 +782,7 @@ void LL_COMP_StructInit(LL_COMP_InitTypeDef *COMP_InitStruct)
    || ((__POWER_MODE__) == LL_COMP_POWERMODE_ULTRALOWPOWER)                    \
   )
 
-/* Note: On this STM32 series, comparator input plus parameters are            */
+/* Note: On this STM32 serie, comparator input plus parameters are            */
 /*       the different depending on COMP instances.                           */
 #define IS_LL_COMP_INPUT_PLUS(__COMP_INSTANCE__, __INPUT_PLUS__)               \
   (((__COMP_INSTANCE__) == COMP1)                                              \
@@ -779,7 +796,7 @@ void LL_COMP_StructInit(LL_COMP_InitTypeDef *COMP_InitStruct)
       )                                                                        \
   )
 
-/* Note: On this STM32 series, comparator input minus parameters are           */
+/* Note: On this STM32 serie, comparator input minus parameters are           */
 /*       the same on all COMP instances.                                      */
 /*       However, comparator instance kept as macro parameter for             */
 /*       compatibility with other STM32 families.                             */
@@ -1031,4 +1048,4 @@ void LL_COMP_StructInit(LL_COMP_InitTypeDef *COMP_InitStruct)
 
 #endif /* USE_FULL_LL_DRIVER */
 
-
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

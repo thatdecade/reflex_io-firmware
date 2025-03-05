@@ -48,14 +48,32 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2016 STMicroelectronics.
-  * All rights reserved.
+  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
   *
-  * This software is licensed under terms that can be found in the LICENSE file in
-  * the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  ******************************************************************************
-  */
+  * Redistribution and use in source and binary forms, with or without modification,
+  * are permitted provided that the following conditions are met:
+  *   1. Redistributions of source code must retain the above copyright notice,
+  *      this list of conditions and the following disclaimer.
+  *   2. Redistributions in binary form must reproduce the above copyright notice,
+  *      this list of conditions and the following disclaimer in the documentation
+  *      and/or other materials provided with the distribution.
+  *   3. Neither the name of STMicroelectronics nor the names of its contributors
+  *      may be used to endorse or promote products derived from this software
+  *      without specific prior written permission.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  *
+  ******************************************************************************  
+*/
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f3xx_hal.h"
@@ -100,10 +118,10 @@
 /** @defgroup RCC_Private_Variables RCC Private Variables
   * @{
   */
-static const uint8_t aPLLMULFactorTable[16U] = { 2U,  3U,  4U,  5U,  6U,  7U,  8U,  9U,
-                                                 10U, 11U, 12U, 13U, 14U, 15U, 16U, 16U};
-static const uint8_t aPredivFactorTable[16U] = { 1U, 2U,  3U,  4U,  5U,  6U,  7U,  8U,
-                                                 9U,10U, 11U, 12U, 13U, 14U, 15U, 16U};
+const uint8_t aPLLMULFactorTable[16] = { 2U,  3U,  4U,  5U,  6U,  7U,  8U,  9U,
+                                       10U, 11U, 12U, 13U, 14U, 15U, 16U, 16U};
+const uint8_t aPredivFactorTable[16] = { 1U, 2U,  3U,  4U,  5U,  6U,  7U,  8U,
+                                         9U,10U, 11U, 12U, 13U, 14U, 15U, 16U};
 /**
   * @}
   */
@@ -163,7 +181,7 @@ static const uint8_t aPredivFactorTable[16U] = { 1U, 2U,  3U,  4U,  5U,  6U,  7U
           on AHB bus (DMA, GPIO...). APB1 (PCLK1) and APB2 (PCLK2) clocks are derived
           from AHB clock through configurable prescalers and used to clock
           the peripherals mapped on these buses. You can use
-          "HAL_RCC_GetSysClockFreq()" function to retrieve the frequencies of these clocks.
+          "@ref HAL_RCC_GetSysClockFreq()" function to retrieve the frequencies of these clocks.
 
       (#) All the peripheral clocks are derived from the System clock (SYSCLK) except:
         (++) The FLASH program/erase clock  which is always HSI 8MHz clock.
@@ -254,7 +272,7 @@ HAL_StatusTypeDef HAL_RCC_DeInit(void)
   SystemCoreClock = HSI_VALUE;
 
   /* Configure the source of time base considering new system clock settings  */
-  if(HAL_InitTick(uwTickPrio) != HAL_OK)
+  if(HAL_InitTick(TICK_INT_PRIORITY) != HAL_OK)
   {
     return HAL_ERROR;
   }
@@ -314,10 +332,6 @@ HAL_StatusTypeDef HAL_RCC_DeInit(void)
 HAL_StatusTypeDef HAL_RCC_OscConfig(RCC_OscInitTypeDef  *RCC_OscInitStruct)
 {
   uint32_t tickstart;
-  uint32_t pll_config;
-#if defined(RCC_CFGR_PLLSRC_HSI_PREDIV)
-  uint32_t pll_config2;
-#endif /* RCC_CFGR_PLLSRC_HSI_PREDIV */
 
   /* Check Null pointer */
   if(RCC_OscInitStruct == NULL)
@@ -640,31 +654,10 @@ HAL_StatusTypeDef HAL_RCC_OscConfig(RCC_OscInitTypeDef  *RCC_OscInitStruct)
     }
     else
     {
-      /* Check if there is a request to disable the PLL used as System clock source */
-      if((RCC_OscInitStruct->PLL.PLLState) == RCC_PLL_OFF)
-      {
-        return HAL_ERROR;
-      }
-      else
-      {
-        /* Do not return HAL_ERROR if request repeats the current configuration */
-        pll_config = RCC->CFGR;
-#if defined(RCC_CFGR_PLLSRC_HSI_PREDIV)
-        pll_config2 = RCC->CFGR2;
-        if((READ_BIT(pll_config, RCC_CFGR_PLLSRC)   != RCC_OscInitStruct->PLL.PLLSource) ||      
-           (READ_BIT(pll_config, RCC_CFGR_PLLMUL)   != RCC_OscInitStruct->PLL.PLLMUL)    ||      
-           (READ_BIT(pll_config2, RCC_CFGR2_PREDIV)  != RCC_OscInitStruct->PLL.PREDIV))     
-#else
-        if((READ_BIT(pll_config, RCC_CFGR_PLLSRC)   != RCC_OscInitStruct->PLL.PLLSource) ||      
-           (READ_BIT(pll_config, RCC_CFGR_PLLMUL)   != RCC_OscInitStruct->PLL.PLLMUL))
-#endif
-        {
-          return HAL_ERROR;
-        }
-      }
+      return HAL_ERROR;
     }
   }
-
+  
   return HAL_OK;
 }
 
@@ -808,7 +801,7 @@ HAL_StatusTypeDef HAL_RCC_ClockConfig(RCC_ClkInitTypeDef  *RCC_ClkInitStruct, ui
   SystemCoreClock = HAL_RCC_GetSysClockFreq() >> AHBPrescTable[(RCC->CFGR & RCC_CFGR_HPRE)>> RCC_CFGR_HPRE_BITNUMBER];
 
   /* Configure the source of time base considering new system clocks settings*/
-  HAL_InitTick (uwTickPrio);
+  HAL_InitTick (TICK_INT_PRIORITY);
   
   return HAL_OK;
 }
@@ -891,10 +884,7 @@ void HAL_RCC_MCOConfig(uint32_t RCC_MCOx, uint32_t RCC_MCOSource, uint32_t RCC_M
   assert_param(IS_RCC_MCO(RCC_MCOx));
   assert_param(IS_RCC_MCODIV(RCC_MCODiv));
   assert_param(IS_RCC_MCO1SOURCE(RCC_MCOSource));
-
-  /* Prevent unused argument(s) compilation warning */
-  UNUSED(RCC_MCOx);
-
+  
   /* Configure the MCO1 pin in alternate function mode */
   gpio.Mode      = GPIO_MODE_AF_PP;
   gpio.Speed     = GPIO_SPEED_FREQ_HIGH;
@@ -980,29 +970,29 @@ uint32_t HAL_RCC_GetSysClockFreq(void)
     }
     case RCC_SYSCLKSOURCE_STATUS_PLLCLK:  /* PLL used as system clock */
     {
-      pllmul = aPLLMULFactorTable[(uint32_t)(tmpreg & RCC_CFGR_PLLMUL) >> RCC_CFGR_PLLMUL_Pos];
-      prediv = aPredivFactorTable[(uint32_t)(RCC->CFGR2 & RCC_CFGR2_PREDIV) >> RCC_CFGR2_PREDIV_Pos];
+      pllmul = aPLLMULFactorTable[(uint32_t)(tmpreg & RCC_CFGR_PLLMUL) >> POSITION_VAL(RCC_CFGR_PLLMUL)];
+      prediv = aPredivFactorTable[(uint32_t)(RCC->CFGR2 & RCC_CFGR2_PREDIV) >> POSITION_VAL(RCC_CFGR2_PREDIV)];
 #if defined(RCC_CFGR_PLLSRC_HSI_DIV2)
       if ((tmpreg & RCC_CFGR_PLLSRC) != RCC_PLLSOURCE_HSI)
       {
         /* HSE used as PLL clock source : PLLCLK = HSE/PREDIV * PLLMUL */
-        pllclk = (uint32_t)((uint64_t) HSE_VALUE / (uint64_t) (prediv)) * ((uint64_t) pllmul);
+        pllclk = (HSE_VALUE / prediv) * pllmul;
       }
       else
       {
         /* HSI used as PLL clock source : PLLCLK = HSI/2 * PLLMUL */
-        pllclk = (uint32_t)((uint64_t) (HSI_VALUE >> 1U) * ((uint64_t) pllmul));
+        pllclk = (HSI_VALUE >> 1U) * pllmul;
       }
 #else
       if ((tmpreg & RCC_CFGR_PLLSRC_HSE_PREDIV) == RCC_CFGR_PLLSRC_HSE_PREDIV)
       {
         /* HSE used as PLL clock source : PLLCLK = HSE/PREDIV * PLLMUL */
-        pllclk = (uint32_t)((uint64_t) HSE_VALUE / (uint64_t) (prediv)) * ((uint64_t) pllmul);
+        pllclk = (HSE_VALUE / prediv) * pllmul;
       }
       else
       {
         /* HSI used as PLL clock source : PLLCLK = HSI/PREDIV * PLLMUL */
-        pllclk = (uint32_t)((uint64_t) HSI_VALUE / (uint64_t) (prediv)) * ((uint64_t) pllmul);
+        pllclk = (HSI_VALUE / prediv) * pllmul;
       }
 #endif /* RCC_CFGR_PLLSRC_HSI_DIV2 */
       sysclockfreq = pllclk;
@@ -1100,7 +1090,7 @@ void HAL_RCC_GetOscConfig(RCC_OscInitTypeDef  *RCC_OscInitStruct)
     RCC_OscInitStruct->HSIState = RCC_HSI_OFF;
   }
   
-  RCC_OscInitStruct->HSICalibrationValue = (uint32_t)((RCC->CR & RCC_CR_HSITRIM) >> RCC_CR_HSITRIM_Pos);
+  RCC_OscInitStruct->HSICalibrationValue = (uint32_t)((RCC->CR & RCC_CR_HSITRIM) >> POSITION_VAL(RCC_CR_HSITRIM));
   
   /* Get the LSE configuration -----------------------------------------------*/
   if((RCC->BDCR &RCC_BDCR_LSEBYP) == RCC_BDCR_LSEBYP)
@@ -1222,3 +1212,4 @@ __weak void HAL_RCC_CSSCallback(void)
   * @}
   */
 
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

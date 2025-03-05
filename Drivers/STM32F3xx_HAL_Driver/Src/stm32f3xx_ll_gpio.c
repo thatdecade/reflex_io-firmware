@@ -6,12 +6,29 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2016 STMicroelectronics.
-  * All rights reserved.
+  * <h2><center>&copy; COPYRIGHT(c) 2016 STMicroelectronics</center></h2>
   *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
+  * Redistribution and use in source and binary forms, with or without modification,
+  * are permitted provided that the following conditions are met:
+  *   1. Redistributions of source code must retain the above copyright notice,
+  *      this list of conditions and the following disclaimer.
+  *   2. Redistributions in binary form must reproduce the above copyright notice,
+  *      this list of conditions and the following disclaimer in the documentation
+  *      and/or other materials provided with the distribution.
+  *   3. Neither the name of STMicroelectronics nor the names of its contributors
+  *      may be used to endorse or promote products derived from this software
+  *      without specific prior written permission.
+  *
+  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
   */
@@ -35,22 +52,6 @@
 /** @addtogroup GPIO_LL
   * @{
   */
-/** MISRA C:2012 deviation rule has been granted for following rules:
-  * Rule-12.2 - Medium: RHS argument is in interval [0,INF] which is out of
-  * range of the shift operator in following API :
-  * LL_GPIO_Init
-  * LL_GPIO_DeInit
-  * LL_GPIO_SetPinMode
-  * LL_GPIO_GetPinMode
-  * LL_GPIO_SetPinSpeed
-  * LL_GPIO_GetPinSpeed
-  * LL_GPIO_SetPinPull
-  * LL_GPIO_GetPinPull
-  * LL_GPIO_GetAFPin_0_7
-  * LL_GPIO_SetAFPin_0_7
-  * LL_GPIO_SetAFPin_8_15
-  * LL_GPIO_GetAFPin_8_15
-  */
 
 /* Private types -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
@@ -59,7 +60,7 @@
 /** @addtogroup GPIO_LL_Private_Macros
   * @{
   */
-#define IS_LL_GPIO_PIN(__VALUE__)          (((0x00u) < (__VALUE__)) && ((__VALUE__) <= (LL_GPIO_PIN_ALL)))
+#define IS_LL_GPIO_PIN(__VALUE__)          (((0x00000000U) < (__VALUE__)) && ((__VALUE__) <= (LL_GPIO_PIN_ALL)))
 
 #define IS_LL_GPIO_MODE(__VALUE__)         (((__VALUE__) == LL_GPIO_MODE_INPUT)     ||\
                                             ((__VALUE__) == LL_GPIO_MODE_OUTPUT)    ||\
@@ -192,8 +193,8 @@ ErrorStatus LL_GPIO_DeInit(GPIO_TypeDef *GPIOx)
   */
 ErrorStatus LL_GPIO_Init(GPIO_TypeDef *GPIOx, LL_GPIO_InitTypeDef *GPIO_InitStruct)
 {
-  uint32_t pinpos;
-  uint32_t currentpin;
+  uint32_t pinpos     = 0x00000000U;
+  uint32_t currentpin = 0x00000000U;
 
   /* Check the parameters */
   assert_param(IS_GPIO_ALL_INSTANCE(GPIOx));
@@ -206,13 +207,16 @@ ErrorStatus LL_GPIO_Init(GPIO_TypeDef *GPIOx, LL_GPIO_InitTypeDef *GPIO_InitStru
   pinpos = POSITION_VAL(GPIO_InitStruct->Pin);
 
   /* Configure the port pins */
-  while (((GPIO_InitStruct->Pin) >> pinpos) != 0x00u)
+  while (((GPIO_InitStruct->Pin) >> pinpos) != 0x00000000U)
   {
     /* Get current io position */
-    currentpin = (GPIO_InitStruct->Pin) & (0x00000001uL << pinpos);
+    currentpin = (GPIO_InitStruct->Pin) & (0x00000001U << pinpos);
 
-    if (currentpin != 0x00u)
+    if (currentpin)
     {
+      /* Pin Mode configuration */
+      LL_GPIO_SetPinMode(GPIOx, currentpin, GPIO_InitStruct->Mode);
+
       if ((GPIO_InitStruct->Mode == LL_GPIO_MODE_OUTPUT) || (GPIO_InitStruct->Mode == LL_GPIO_MODE_ALTERNATE))
       {
         /* Check Speed mode parameters */
@@ -220,12 +224,6 @@ ErrorStatus LL_GPIO_Init(GPIO_TypeDef *GPIOx, LL_GPIO_InitTypeDef *GPIO_InitStru
 
         /* Speed mode configuration */
         LL_GPIO_SetPinSpeed(GPIOx, currentpin, GPIO_InitStruct->Speed);
-
-        /* Check Output mode parameters */
-        assert_param(IS_LL_GPIO_OUTPUT_TYPE(GPIO_InitStruct->OutputType));
-
-        /* Output mode configuration*/
-        LL_GPIO_SetPinOutputType(GPIOx, GPIO_InitStruct->Pin, GPIO_InitStruct->OutputType);
       }
 
       /* Pull-up Pull down resistor configuration*/
@@ -246,13 +244,19 @@ ErrorStatus LL_GPIO_Init(GPIO_TypeDef *GPIOx, LL_GPIO_InitTypeDef *GPIO_InitStru
           LL_GPIO_SetAFPin_8_15(GPIOx, currentpin, GPIO_InitStruct->Alternate);
         }
       }
-
-      /* Pin Mode configuration */
-      LL_GPIO_SetPinMode(GPIOx, currentpin, GPIO_InitStruct->Mode);
     }
     pinpos++;
   }
 
+  if ((GPIO_InitStruct->Mode == LL_GPIO_MODE_OUTPUT) || (GPIO_InitStruct->Mode == LL_GPIO_MODE_ALTERNATE))
+  {
+    /* Check Output mode parameters */
+    assert_param(IS_LL_GPIO_OUTPUT_TYPE(GPIO_InitStruct->OutputType));
+
+    /* Output mode configuration*/
+    LL_GPIO_SetPinOutputType(GPIOx, GPIO_InitStruct->Pin, GPIO_InitStruct->OutputType);
+
+  }
   return (SUCCESS);
 }
 
@@ -293,3 +297,5 @@ void LL_GPIO_StructInit(LL_GPIO_InitTypeDef *GPIO_InitStruct)
   */
 
 #endif /* USE_FULL_LL_DRIVER */
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
