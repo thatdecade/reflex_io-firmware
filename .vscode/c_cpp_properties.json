@@ -3,12 +3,6 @@
   {
   "name": "STM32 Debug",
   "includePath": [
-      "${env:VSARM}/armcc/arm-none-eabi/include/c++/9.2.1",
-      "${env:VSARM}/armcc/arm-none-eabi/include/c++/9.2.1/arm-none-eabi",
-      "${env:VSARM}/arm-none-eabi/include/c++/9.2.1/backward",
-      "${env:VSARM}/armcc/lib/gcc/arm-none-eabi/9.2.1/include",
-      "${env:VSARM}/armcc/lib/gcc/arm-none-eabi/9.2.1/include-fixed",
-      "${env:VSARM}/armcc/arm-none-eabi/include",
       "${workspaceRoot}/Drivers/CMSIS/Include/",
       "${workspaceRoot}/Drivers/CMSIS/Device/ST/STM32F3xx/Include/",
       "${workspaceRoot}/Inc",
@@ -16,8 +10,12 @@
       "${workspaceRoot}/Src/tinyusb/",
       "${workspaceRoot}/Drivers/STM32F3xx_HAL_Driver/Inc",
       "${workspaceRoot}/Drivers/STM32F3xx_HAL_Driver/Inc/Legacy/",
-      "${workspaceRoot}/Drivers/STM32F3xx_HAL_Driver/Src"
+      "${workspaceRoot}/Drivers/STM32F3xx_HAL_Driver/Src",
+      "C:/SysGCC/arm-eabi-1031/arm-none-eabi/include",
+      "C:/SysGCC/arm-eabi-1031/arm-none-eabi/include/c++"
   ],
+  "compilerPath": "C:\\SysGCC\\arm-eabi-1031\\bin\\arm-none-eabi-gcc.exe",
+  "cStandard": "c11",
   "defines": [
       "STM32F303xC",
       "USE_HAL_DRIVER"
@@ -26,7 +24,8 @@
   "browse": {
   "path": [
       "${workspaceRoot}",
-      "${env:VSARM}/armcc"
+      "C:/SysGCC/arm-eabi-1031/arm-none-eabi/include",
+      "C:/SysGCC/arm-eabi-1031/arm-none-eabi/include/c++"
   ],
   "limitSymbolsToIncludedHeaders": false,
   "databaseFilename": ""

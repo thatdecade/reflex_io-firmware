@@ -13,7 +13,6 @@
       "svdFile": "STM32F303.svd",
       "toolchainPrefix": "arm-none-eabi",
       "interface": "swd",
-      "runToEntryPoint": "main",
       "preLaunchTask": "Compile and Flash",
     }
   ]

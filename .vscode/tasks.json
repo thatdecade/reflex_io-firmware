@@ -24,7 +24,7 @@
         "-j8",
         "all",
         "TARGET=io_firmware",
-        "OPT=-O2",
+        "OPT=-Og",
         "BINPATH=/armcc/bin"
       ],
       "options": {
@@ -34,7 +34,7 @@
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": [],
+      "problemMatcher": []
     },
     {
       "label": "Load Firmware",
