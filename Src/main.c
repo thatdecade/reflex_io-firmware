@@ -11,8 +11,6 @@
 #include "tusb_config.h"
 #include "tusb.h"
 #include "tusb_hid.h"
-#include "config_mode.h"
-#include "profile_config.h"
 
 #define USB_HID_PACKET_SIZE_BYTES (64U)
 #define BYTES_PER_SEGMENT (64U)
@@ -22,7 +20,6 @@
 #define LED_ARRAY_SIZE (BYTES_PER_PANEL * PANELS_PER_PLATFORM)
 
 #define SENSOR_RESPONSE_LEN (8U)
-
 #define COMPLETE_FRAME (0xFFFF)
 
 volatile ErrorCode Panic_Error = 0;
@@ -36,40 +33,34 @@ volatile uint32_t packets_fetched = 0;
 
 static void init_system_clock(void);
 static void init_gpio(void);
+static void init(void);
+static void run(void);
+static void test(void);
 
-static void init();
-static void run();
-static void test();
-static void process_hid_packet(void);
-static inline void process_led_data(uint8_t *packet);
-
-static inline void send_request_sensors() {
+static inline void send_request_sensors(void) {
     Request req = request_create(Command_Request_Sensors);
     req.response_len = SENSOR_RESPONSE_LEN;
 
     req.comport_id = Comport_Left;
-    req.response_data = sensor_buffer + \
-        ((uint8_t)Comport_Left) * SENSOR_RESPONSE_LEN;
+    req.response_data = sensor_buffer + ((uint8_t)Comport_Left) * SENSOR_RESPONSE_LEN;
     msgbus_send_request(req);
 
     req.comport_id = Comport_Down;
-    req.response_data = sensor_buffer + \
-        ((uint8_t)Comport_Down) * SENSOR_RESPONSE_LEN;
+    req.response_data = sensor_buffer + ((uint8_t)Comport_Down) * SENSOR_RESPONSE_LEN;
     msgbus_send_request(req);
 
     req.comport_id = Comport_Up;
-    req.response_data = sensor_buffer + \
-        ((uint8_t)Comport_Up) * SENSOR_RESPONSE_LEN;
+    req.response_data = sensor_buffer + ((uint8_t)Comport_Up) * SENSOR_RESPONSE_LEN;
     msgbus_send_request(req);
 
     req.comport_id = Comport_Right;
-    req.response_data = sensor_buffer + \
-        ((uint8_t)Comport_Right) * SENSOR_RESPONSE_LEN;
+    req.response_data = sensor_buffer + ((uint8_t)Comport_Right) * SENSOR_RESPONSE_LEN;
     msgbus_send_request(req);
 }
 
 static inline void send_sensor_update_usb() {
     tud_hid_report(
+        USB_GENERIC_HID_INTERFACE,
         USB_SEND_REPORT_ID,
         usb_sensor_buffer,
         USB_HID_PACKET_SIZE_BYTES
@@ -86,7 +77,7 @@ static inline void process_sensor_data(Response * resp) {
     }   
 }
 
-static inline void send_commit_LEDs() {
+static inline void send_commit_LEDs(void) {
     Request req = request_create(Command_Commit_LEDs);
     req.comport_id = Comport_Left;
     msgbus_send_request(req);
@@ -106,64 +97,30 @@ static inline void send_process_led_segment(uint8_t panel, uint8_t * data_ptr) {
     msgbus_send_request(req);
 }
 
-
-static void process_hid_packet(void) {
-    uint8_t *packet = usb_get_packet();
-    if (packet == NULL) {
-        return;
-    }
-    
-    // First, use the config-mode filter to check for enter/exit packets.
-    config_modes_t mode = packet_filter_for_config_mode(packet);
-    if (mode != CONFIG_MODE_NORMAL) {
-        // Either the "enter" or "exit" magic packet was received.
-        set_config_mode(mode);
-        return;
-    }
-    
-    // Process LED Data or Config Packets
-    if (!is_config_mode()) {
-        process_led_data(packet);
-    }
-    else // is_config_mode
-    {
-        DBG_LED2_TOGGLE(); // Rapid blink comm LEDs
-        
-        uint8_t header = packet[0];
-        if (header == PROFILE_PUSH_PACKET) {
-            // Bytes 1�32 contain sensor thresholds/hysteresis data and bytes 33�36 the panel keys.
-            // Save this configuration using the profile_config module.
-            HAL_StatusTypeDef status = profile_config_save(packet + 1);
-        } else if (header == PROFILE_READ_PACKET) {
-            // Prepare a reply packet with header 0xF1 and profile data read from EEPROM.
-            uint8_t reply[64] = {0};
-            reply[0] = 0xF1;
-            profile_config_read(reply + 1);
-            tud_hid_report(USB_SEND_REPORT_ID, reply, 64);
-        }
-    }
-}
-
-static inline void process_led_data(uint8_t *packet) {
+static inline void process_led_data(void) {
     static uint16_t segments_received = 0x0000;
     static uint8_t led_buffer[LED_ARRAY_SIZE];
     static uint8_t previous_frame = 0xFF;
-    
-    // If the previous full frame has been received, commit the LED data.
+
     if (segments_received == COMPLETE_FRAME) {
         DBG_LED3_ON();
         segments_received = 0x0000;
         send_commit_LEDs();
     }
-    
-    uint8_t header  = packet[0];
+
+    uint8_t * packet = usb_get_packet();
+
+    if (packet == NULL) {
+        return;
+    }
+
+    uint8_t header = packet[0];
     last_usb_header = header;
-    uint8_t panel   = (header >> 6) & 0x03;
+    uint8_t panel = (header >> 6) & 0x03;
     uint8_t segment = (header >> 4) & 0x03;
-    uint8_t frame   = header & 0x0F;
-    
+    uint8_t frame = header & 0x0F;
     uint16_t buffer_offset = panel * BYTES_PER_PANEL + segment * BYTES_PER_SEGMENT;
-    
+
     for (uint8_t i = 0; i < USB_HID_PACKET_SIZE_BYTES; i++) {
         led_buffer[i + buffer_offset] = packet[i];
     }
@@ -177,13 +134,14 @@ static inline void process_led_data(uint8_t *packet) {
     send_process_led_segment(panel, led_buffer + buffer_offset);
 }
 
+
 int main(void){
     init();
     //test();
     run();
 }
 
-static void init() {
+static void init(void) {
     HAL_Init();
     init_gpio();
     init_system_clock();
@@ -192,44 +150,68 @@ static void init() {
     tusb_init();
     
     DBG_LED1_ON();
+    
 }
 
 static void run(void) {
     send_request_sensors();
     
+    // TBD: keyboard demo: key_state toggles key press/release.
+    static bool key_state = false;
+    static uint32_t last_key_toggle_time = 0;
+    
     while (1) {
-        // Process any pending messages from the internal (panel-to-panel) comms.
+        // Process any interrupt flags set since last loop
         msgbus_process_flags();
-        
+      
+        // If there's a new command response to process, do that
         if (msgbus_have_pending_response()) {
-            Response *resp = msgbus_get_pending_response();
+            Response * resp = msgbus_get_pending_response();
+          
             switch (resp->request_command) {
                 case Command_Request_Sensors:
+                    // Currently Request_Sensors is the only command that
+                    // responds with data from the panel board
                     process_sensor_data(resp);
                     break;
-                // Add other command responses if needed.
             }
         }
-        
-        // Instead of directly processing LED data, process any incoming USB HID packets.
-        // This will filter out config packets and process profile commands if in config mode.
-        process_hid_packet();
-        
-        // Only send sensor data over USB if we are in normal (non-config) mode.
-        if (!is_config_mode()) {
-            send_sensor_update_usb();
-        }
-        
-        // Always keep requesting sensor data.
+
+        // Send an update of the latest sensor readings over USB
+        send_sensor_update_usb();
+
+        // If we've received LED data over USB since last loop, process that,
+        // and send it where it's got to go
+        process_led_data();
+
+        // Request more sensor updates, always
         send_request_sensors();
         
-        // Let the TinyUSB stack process USB events.
+        // Let TinyUSB process its interrupt flags
         tud_task();
+        
+        // TBD: keyboard demo:
+        // When a host is mounted, simulate a key press on the keyboard interface (instance 1).
+        if (tud_mounted()) {
+            uint32_t current_time = HAL_GetTick();
+            if (current_time - last_key_toggle_time >= 5000) {
+                if (!key_state) {
+                    uint8_t keycode[6] = {0};
+                    keycode[0] = HID_KEY_A; // Key 'A'                    
+                    tud_hid_keyboard_report(USB_KEYBOARD_INTERFACE, 0, 0, keycode);
+                    key_state = true;
+                } else {
+                    tud_hid_keyboard_report(USB_KEYBOARD_INTERFACE, 0, 0, NULL);
+                    key_state = false;
+                }
+                last_key_toggle_time = current_time;
+            }
+        }
+        // ---------------------------
     }
 }
 
-
-static void test() {
+static void test(void) {
     // usb comms test
     while (1) {
         tud_task();
@@ -339,26 +321,13 @@ static void init_system_clock() {
     }
 }
 
-static void init_gpio() {
+static void init_gpio(void) {
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOC_CLK_ENABLE();
 
     // -- Write relevant GPIO pins LOW
-
-    // A 0,1,6,7: Debug pins
-    HAL_GPIO_WritePin(
-        GPIOA, 
-        GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_6 | GPIO_PIN_7,
-        GPIO_PIN_RESET
-    );
-
-    // C 13,14,15: Status LEDs
-    HAL_GPIO_WritePin(
-        GPIOC,
-        GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15,
-        GPIO_PIN_RESET
-    );
-
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0 | GPIO_PIN_1 | GPIO_PIN_6 | GPIO_PIN_7, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15, GPIO_PIN_RESET);
     // -- configure pin modes
     GPIO_InitTypeDef GPIO_InitStruct = {0};
 

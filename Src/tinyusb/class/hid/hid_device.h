@@ -48,21 +48,21 @@
 //--------------------------------------------------------------------+
 
 // Check if the interface is ready to use
-bool tud_hid_ready(void);
+bool tud_hid_ready(uint8_t interface_index);
 
 // Check if current mode is Boot (true) or Report (false)
 bool tud_hid_boot_mode(void);
 
 // Send report to host
-bool tud_hid_report(uint8_t report_id, void const* report, uint8_t len);
+bool tud_hid_report(uint8_t interface_index, uint8_t report_id, void const* report, uint8_t len);
 
 // KEYBOARD: convenient helper to send keyboard report if application
 // use template layout report as defined by hid_keyboard_report_t
-bool tud_hid_keyboard_report(uint8_t report_id, uint8_t modifier, uint8_t keycode[6]);
+bool tud_hid_keyboard_report(uint8_t interface_index, uint8_t report_id, uint8_t modifier, uint8_t keycode[6]);
 
 // MOUSE: convenient helper to send mouse report if application
 // use template layout report as defined by hid_mouse_report_t
-bool tud_hid_mouse_report(uint8_t report_id, uint8_t buttons, int8_t x, int8_t y, int8_t vertical, int8_t horizontal);
+bool tud_hid_mouse_report(uint8_t interface_index, uint8_t report_id, uint8_t buttons, int8_t x, int8_t y, int8_t vertical, int8_t horizontal);
 
 //--------------------------------------------------------------------+
 // Callbacks (Weak is optional)
@@ -70,7 +70,7 @@ bool tud_hid_mouse_report(uint8_t report_id, uint8_t buttons, int8_t x, int8_t y
 
 // Invoked when received GET HID REPORT DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long enough for transfer to complete
-uint8_t const * tud_hid_descriptor_report_cb(void);
+uint8_t const * tud_hid_descriptor_report_cb(uint8_t instance);
 
 // Invoked when received GET_REPORT control request
 // Application must fill buffer report's content and return its length.

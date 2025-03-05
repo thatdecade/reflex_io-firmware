@@ -70,19 +70,17 @@ static inline hidd_interface_t* get_interface_by_itfnum(uint8_t itf_num)
 //--------------------------------------------------------------------+
 // APPLICATION API
 //--------------------------------------------------------------------+
-bool tud_hid_ready(void)
+bool tud_hid_ready(uint8_t interface_index)
 {
-  uint8_t itf = 0;
-  uint8_t const ep_in = _hidd_itf[itf].ep_in;
+  uint8_t const ep_in = _hidd_itf[interface_index].ep_in;
   return tud_ready() && (ep_in != 0) && usbd_edpt_ready(TUD_OPT_RHPORT, ep_in);
 }
 
-bool tud_hid_report(uint8_t report_id, void const* report, uint8_t len)
+bool tud_hid_report(uint8_t interface_index, uint8_t report_id, void const* report, uint8_t len)
 {
-  TU_VERIFY( tud_hid_ready() );
+  TU_VERIFY( tud_hid_ready(interface_index) );
 
-  uint8_t itf = 0;
-  hidd_interface_t * p_hid = &_hidd_itf[itf];
+  hidd_interface_t * p_hid = &_hidd_itf[interface_index];
 
   if (report_id)
   {
@@ -110,7 +108,7 @@ bool tud_hid_boot_mode(void)
 //--------------------------------------------------------------------+
 // KEYBOARD API
 //--------------------------------------------------------------------+
-bool tud_hid_keyboard_report(uint8_t report_id, uint8_t modifier, uint8_t keycode[6])
+bool tud_hid_keyboard_report(uint8_t interface_index, uint8_t report_id, uint8_t modifier, uint8_t keycode[6])
 {
   hid_keyboard_report_t report;
 
@@ -124,13 +122,13 @@ bool tud_hid_keyboard_report(uint8_t report_id, uint8_t modifier, uint8_t keycod
     tu_memclr(report.keycode, 6);
   }
 
-  return tud_hid_report(report_id, &report, sizeof(report));
+  return tud_hid_report(interface_index, report_id, &report, sizeof(report));
 }
 
 //--------------------------------------------------------------------+
 // MOUSE APPLICATION API
 //--------------------------------------------------------------------+
-bool tud_hid_mouse_report(uint8_t report_id, uint8_t buttons, int8_t x, int8_t y, int8_t vertical, int8_t horizontal)
+bool tud_hid_mouse_report(uint8_t interface_index, uint8_t report_id, uint8_t buttons, int8_t x, int8_t y, int8_t vertical, int8_t horizontal)
 {
   hid_mouse_report_t report =
   {
@@ -141,7 +139,7 @@ bool tud_hid_mouse_report(uint8_t report_id, uint8_t buttons, int8_t x, int8_t y
     .pan     = horizontal
   };
 
-  return tud_hid_report(report_id, &report, sizeof(report));
+  return tud_hid_report(interface_index, report_id, &report, sizeof(report));
 }
 
 //--------------------------------------------------------------------+
@@ -221,7 +219,7 @@ bool hidd_control_request(uint8_t rhport, tusb_control_request_t const * request
     }
     else if (request->bRequest == TUSB_REQ_GET_DESCRIPTOR && desc_type == HID_DESC_TYPE_REPORT)
     {
-      uint8_t const * desc_report = tud_hid_descriptor_report_cb();
+      uint8_t const * desc_report = tud_hid_descriptor_report_cb(p_hid->itf_num);
       tud_control_xfer(rhport, request, (void*) desc_report, p_hid->report_desc_len);
     }
     else
