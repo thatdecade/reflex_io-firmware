@@ -611,7 +611,7 @@ enum
  *
  *  if ( conv_table[chr][0] ) modifier = KEYBOARD_MODIFIER_LEFTSHIFT;
  *  keycode[0] = conv_table[chr][1];
- *  tud_hid_keyboard_report(report_id, modifier, keycode);
+ *  tud_hid_keyboard_report(interface_index, report_id, modifier, keycode);
  *
  *--------------------------------------------------------------------*/
 #define HID_ASCII_TO_KEYCODE \

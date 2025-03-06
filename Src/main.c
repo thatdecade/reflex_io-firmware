@@ -11,6 +11,7 @@
 #include "tusb_config.h"
 #include "tusb.h"
 #include "tusb_hid.h"
+#include "keyboard.h"
 
 #define USB_HID_PACKET_SIZE_BYTES (64U)
 #define BYTES_PER_SEGMENT (64U)
@@ -100,6 +101,7 @@ static inline void send_process_led_segment(uint8_t panel, uint8_t * data_ptr) {
 static inline void process_led_data(void) {
     static uint16_t segments_received = 0x0000;
     static uint8_t led_buffer[LED_ARRAY_SIZE];
+
     static uint8_t previous_frame = 0xFF;
 
     if (segments_received == COMPLETE_FRAME) {
@@ -148,17 +150,40 @@ static void init(void) {
     uart_init();
     msgbus_init();
     tusb_init();
+    keyboard_begin(); 
     
     DBG_LED1_ON();
     
 }
 
+
+#define BUTTON_PRESS_TIMING   30000   // 30 seconds delay
+
+void process_keyboard_demo(void) {
+    if (!tud_mounted()) return;
+
+    uint32_t current_time = HAL_GetTick();
+    static bool sendUp = true;
+    static uint32_t last_key_time = 0;
+
+    if ((current_time - last_key_time) >= BUTTON_PRESS_TIMING) {
+        if (sendUp) {
+            keyboard_press_and_release(HID_KEY_ARROW_UP);
+        } else {
+            keyboard_press_and_release(HID_KEY_ARROW_DOWN);
+        }
+        sendUp = !sendUp;
+        last_key_time = current_time;
+    }
+}
+
+
 static void run(void) {
     send_request_sensors();
     
     // TBD: keyboard demo: key_state toggles key press/release.
-    static bool key_state = false;
-    static uint32_t last_key_toggle_time = 0;
+    static uint8_t key_state = 0;
+    static uint32_t current_time = 0;
     
     while (1) {
         // Process any interrupt flags set since last loop
@@ -191,22 +216,7 @@ static void run(void) {
         tud_task();
         
         // TBD: keyboard demo:
-        // When a host is mounted, simulate a key press on the keyboard interface (instance 1).
-        if (tud_mounted()) {
-            uint32_t current_time = HAL_GetTick();
-            if (current_time - last_key_toggle_time >= 5000) {
-                if (!key_state) {
-                    uint8_t keycode[6] = {0};
-                    keycode[0] = HID_KEY_A; // Key 'A'                    
-                    tud_hid_keyboard_report(USB_KEYBOARD_INTERFACE, 0, 0, keycode);
-                    key_state = true;
-                } else {
-                    tud_hid_keyboard_report(USB_KEYBOARD_INTERFACE, 0, 0, NULL);
-                    key_state = false;
-                }
-                last_key_toggle_time = current_time;
-            }
-        }
+        process_keyboard_demo();
         // ---------------------------
     }
 }
