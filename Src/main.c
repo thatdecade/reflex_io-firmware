@@ -12,6 +12,8 @@
 #include "tusb.h"
 #include "tusb_hid.h"
 #include "keyboard.h"
+#include "profile_config.h"
+#include "sensors.h"
 
 #define USB_HID_PACKET_SIZE_BYTES (64U)
 #define BYTES_PER_SEGMENT (64U)
@@ -20,14 +22,12 @@
 #define PANELS_PER_PLATFORM (4U)
 #define LED_ARRAY_SIZE (BYTES_PER_PANEL * PANELS_PER_PLATFORM)
 
-#define SENSOR_RESPONSE_LEN (8U)
 #define COMPLETE_FRAME (0xFFFF)
 
 volatile ErrorCode Panic_Error = 0;
 volatile uint32_t Panic_Data = 0;
 
-uint8_t sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
-uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
+volatile bool host_connected = false;
 
 volatile uint8_t last_usb_header;
 volatile uint32_t packets_fetched = 0;
@@ -38,44 +38,13 @@ static void init(void);
 static void run(void);
 static void test(void);
 
-static inline void send_request_sensors(void) {
-    Request req = request_create(Command_Request_Sensors);
-    req.response_len = SENSOR_RESPONSE_LEN;
-
-    req.comport_id = Comport_Left;
-    req.response_data = sensor_buffer + ((uint8_t)Comport_Left) * SENSOR_RESPONSE_LEN;
-    msgbus_send_request(req);
-
-    req.comport_id = Comport_Down;
-    req.response_data = sensor_buffer + ((uint8_t)Comport_Down) * SENSOR_RESPONSE_LEN;
-    msgbus_send_request(req);
-
-    req.comport_id = Comport_Up;
-    req.response_data = sensor_buffer + ((uint8_t)Comport_Up) * SENSOR_RESPONSE_LEN;
-    msgbus_send_request(req);
-
-    req.comport_id = Comport_Right;
-    req.response_data = sensor_buffer + ((uint8_t)Comport_Right) * SENSOR_RESPONSE_LEN;
-    msgbus_send_request(req);
-}
-
-static inline void send_sensor_update_usb() {
+static inline void send_sensor_update_usb(usb_sensor_buffer) {
     tud_hid_report(
         USB_GENERIC_HID_INTERFACE,
         USB_SEND_REPORT_ID,
         usb_sensor_buffer,
         USB_HID_PACKET_SIZE_BYTES
     );
-}
-
-// Breaks when this is being done after a bunch of times
-static inline void process_sensor_data(Response * resp) {
-    uint8_t offset = (uint8_t)resp->comport_id * SENSOR_RESPONSE_LEN;
-
-    // Copy data over into usb sensor array
-    for (uint8_t i = 0; i < resp->data_length; i++) {
-        usb_sensor_buffer[offset + i] = resp->data[i];
-    }   
 }
 
 static inline void send_commit_LEDs(void) {
@@ -101,7 +70,6 @@ static inline void send_process_led_segment(uint8_t panel, uint8_t * data_ptr) {
 static inline void process_led_data(void) {
     static uint16_t segments_received = 0x0000;
     static uint8_t led_buffer[LED_ARRAY_SIZE];
-
     static uint8_t previous_frame = 0xFF;
 
     if (segments_received == COMPLETE_FRAME) {
@@ -115,6 +83,9 @@ static inline void process_led_data(void) {
     if (packet == NULL) {
         return;
     }
+
+    // LED data has been received so disable keyboard interface until power cycle.
+    host_connected = true;
 
     uint8_t header = packet[0];
     last_usb_header = header;
@@ -151,9 +122,10 @@ static void init(void) {
     msgbus_init();
     tusb_init();
     keyboard_begin(); 
-    
+
+    profile_config_read(); //TBD
+
     DBG_LED1_ON();
-    
 }
 
 
@@ -161,6 +133,12 @@ static void init(void) {
 
 void process_keyboard_demo(void) {
     if (!tud_mounted()) return;
+
+    // Fail-Safe: If LED data has been received, the keyboard interface remains disabled.
+    if (host_connected) return;
+
+    // Fail-Safe: Disable keyboard for the first 10 seconds after power on.
+    if (HAL_GetTick() < 10000) return;
 
     uint32_t current_time = HAL_GetTick();
     static bool sendUp = true;
@@ -184,6 +162,7 @@ static void run(void) {
     // TBD: keyboard demo: key_state toggles key press/release.
     static uint8_t key_state = 0;
     static uint32_t current_time = 0;
+    uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
     
     while (1) {
         // Process any interrupt flags set since last loop
@@ -197,13 +176,13 @@ static void run(void) {
                 case Command_Request_Sensors:
                     // Currently Request_Sensors is the only command that
                     // responds with data from the panel board
-                    process_sensor_data(resp);
+                    process_sensor_data(resp, &usb_sensor_buffer);
                     break;
             }
         }
 
         // Send an update of the latest sensor readings over USB
-        send_sensor_update_usb();
+        send_sensor_update_usb(usb_sensor_buffer);
 
         // If we've received LED data over USB since last loop, process that,
         // and send it where it's got to go
@@ -215,9 +194,11 @@ static void run(void) {
         // Let TinyUSB process its interrupt flags
         tud_task();
         
-        // TBD: keyboard demo:
-        process_keyboard_demo();
-        // ---------------------------
+        if auto_calibrate_sensors()
+        {
+            // Process key events based on pad activation history.
+    	    keyboard_task(); //TBD
+        }
     }
 }
 
