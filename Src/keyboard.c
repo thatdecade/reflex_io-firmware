@@ -21,6 +21,7 @@
 
 #include "keyboard.h"
 #include "tusb_hid.h"
+#include "hid_device.h"
 #include <string.h>
 
 static KeyReport _keyReport;

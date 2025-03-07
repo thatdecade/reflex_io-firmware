@@ -3,12 +3,18 @@
 
 #define NUM_PADS 4
 
+#define CALIBRATION_ROLLING_WINDOW_SIZE 10
+
+uint8_t sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
+uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
+
 // Static storage for calibration and state for each pad
 static uint16_t pad_idle[NUM_PADS] = {0};            // Calibrated idle values for each pad
 static bool     pad_active[NUM_PADS] = {false};      // Current active/inactive flag per pad
 static uint32_t pad_last_activation[NUM_PADS] = {0}; // Timestamp of last state change
-static uint16_t pad_last_sum[NUM_PADS] = {0};
-#define CALIBRATION_DELAY_MS   8000
+static uint16_t pad_last_sum[NUM_PADS] = {0};        // Latest sensor sum reading
+
+#define CALIBRATION_DELAY_MS    8000
 #define CALIBRATION_DURATION_MS 2000
 
 // SENSOR_THRESHOLD: the amount above idle needed to consider the pad pressed
@@ -22,6 +28,14 @@ static uint16_t pad_last_sum[NUM_PADS] = {0};
 #define HARDCODED_SENSOR_THRESHOLD   DEFAULT_SENSOR_THRESHOLD 
 #define HARDCODED_SENSOR_HYSTERESIS  DEFAULT_SENSOR_HYSTERESIS
 #define HARDCODED_SENSOR_COOLDOWN    DEFAULT_SENSOR_COOLDOWN  
+
+bool sensor_pad_is_active(uint8_t pad)
+{
+    if (pad >= NUM_PADS) {
+        return false;
+    }
+    return pad_active[pad];
+}
 
 void send_request_sensors(void) {
     Request req = request_create(Command_Request_Sensors);
@@ -91,6 +105,8 @@ void process_sensor_data(Response * resp, uint8_t * usb_buffer)
     // If pad is active, check if sensor reading falls below (threshold - hysteresis) to deactivate
     else  if (adjusted < (HARDCODED_SENSOR_THRESHOLD - HARDCODED_SENSOR_HYSTERESIS)) {
         pad_active[pad_index] = false;
+        
+        // Prevent multiple activations before cooldown
         pad_last_activation[pad_index] = current_time;
     }
 }
@@ -98,48 +114,53 @@ void process_sensor_data(Response * resp, uint8_t * usb_buffer)
 bool auto_calibrate_sensors(void)
 {
     static bool auto_calibration_done = false;
-    static uint32_t sensor_sum_accum[NUM_PADS] = {0};
-    static uint32_t sample_count[NUM_PADS] = {0};
+    
+    static uint32_t rolling_sum[NUM_PADS] = {0}; // Sum over the window (never grows beyond 32*max(sample))
+    static uint16_t rolling_buffer[NUM_PADS][CALIBRATION_ROLLING_WINDOW_SIZE] = {{0}}; // Circular buffer for each pad.
+    static uint8_t  rolling_index[NUM_PADS] = {0}; // Next insertion index per pad.
+    static uint8_t  rolling_count[NUM_PADS] = {0}; // Number of samples in buffer (max = CALIBRATION_ROLLING_WINDOW_SIZE)
 
     uint32_t current_time = HAL_GetTick();
 
-    if (auto_calibration_done) {
-        // Calibration already completed, nothing to do.
-        return true;
-    }
+    if (auto_calibration_done) 
+        return true; // Calibration already completed, nothing to do.
+    if (current_time < CALIBRATION_DELAY_MS)
+        return false; // Waiting for sensor values to settle after power up
 
-    if (current_time < CALIBRATION_DELAY_MS) {
-        // Waiting for sensor values to settle after power up
-        return false;
-    }
-
+    // For each pad, update its rolling average with the latest sensor sum.
     for (uint8_t i = 0; i < NUM_PADS; i++) {
-        // Accumulate each pad's sensor sum.
-        sensor_sum_accum[i] += pad_last_sum[i];
-        sample_count[i]++;
+        if (rolling_count[i] < CALIBRATION_ROLLING_WINDOW_SIZE) {
+            // Buffer not full yet: add new sample.
+            rolling_sum[i] += pad_last_sum[i];
+            rolling_buffer[i][rolling_index[i]] = pad_last_sum[i];
+            rolling_index[i] = (rolling_index[i] + 1) % CALIBRATION_ROLLING_WINDOW_SIZE;
+            rolling_count[i]++;
+        } else {
+            // Buffer full: subtract oldest sample then add new sample.
+            rolling_sum[i] -= rolling_buffer[i][rolling_index[i]];
+            rolling_buffer[i][rolling_index[i]] = pad_last_sum[i];
+            rolling_sum[i] += pad_last_sum[i];
+            rolling_index[i] = (rolling_index[i] + 1) % CALIBRATION_ROLLING_WINDOW_SIZE;
+        }
+	
+        // Compute the rolling average and update the idle calibration value.
+        pad_idle[i] = (uint16_t)(rolling_sum[i] / rolling_count[i]);
+	
+        // Reset pad activation (prevent stuck states)
+        pad_active[i] = false;
+        pad_last_activation[i] = current_time;
     }
 
-    // Once calibration period is over, compute average and set pad_idle.
-    if (current_time >= CALIBRATION_DURATION_MS) {
+    // Once the calibration period (delay + duration) has elapsed, mark calibration done.
+    if (current_time >= (CALIBRATION_DELAY_MS + CALIBRATION_DURATION_MS)) {
+        auto_calibration_done = true;
+	
+        // Reset pad activation (prevent stuck states)
         for (uint8_t i = 0; i < NUM_PADS; i++) {
-            if (sample_count[i] > 0) {
-                pad_idle[i] = (uint16_t)(sensor_sum_accum[i] / sample_count[i]);
-            } else {
-                pad_idle[i] = 0;
-            }
-            // Reset pad activation state (prevent stuck states)
             pad_active[i] = false;
             pad_last_activation[i] = current_time;
         }
-        auto_calibration_done = true;
     }
-    return auto_calibration_done;
-}
 
-bool sensor_pad_is_active(uint8_t pad)
-{
-    if (pad >= NUM_PADS) {
-        return false;
-    }
-    return pad_active[pad];
+    return auto_calibration_done;
 }

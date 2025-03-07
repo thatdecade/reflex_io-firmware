@@ -12,10 +12,9 @@
 #include "tusb.h"
 #include "tusb_hid.h"
 #include "keyboard.h"
-#include "profile_config.h"
+//#include "profile_config.h"
 #include "sensors.h"
 
-#define USB_HID_PACKET_SIZE_BYTES (64U)
 #define BYTES_PER_SEGMENT (64U)
 #define SEGMENTS_PER_PANEL (4U)
 #define BYTES_PER_PANEL (BYTES_PER_SEGMENT * SEGMENTS_PER_PANEL)
@@ -37,12 +36,13 @@ static void init_gpio(void);
 static void init(void);
 static void run(void);
 static void test(void);
+void keyboard_task(void);
 
-static inline void send_sensor_update_usb(usb_sensor_buffer) {
+static inline void send_sensor_update_usb(uint8_t *usb_sensor_buffer) {
     tud_hid_report(
         USB_GENERIC_HID_INTERFACE,
         USB_SEND_REPORT_ID,
-        usb_sensor_buffer,
+        &usb_sensor_buffer,
         USB_HID_PACKET_SIZE_BYTES
     );
 }
@@ -123,7 +123,7 @@ static void init(void) {
     tusb_init();
     keyboard_begin(); 
 
-    profile_config_read(); //TBD
+    //profile_config_read(); //TBD
 
     DBG_LED1_ON();
 }
@@ -202,7 +202,25 @@ static void run(void) {
     }
 }
 
+void keyboard_task(void) {
+    for (uint8_t i = 0; i < 4; i++) {
+        // Convert sensor index to its corresponding ASCII character ('0', '1', '2', '3')
+        char key = (char)(i + 48);
+        
+        // Check if the sensor pad at index i is active
+        if (sensor_pad_is_active(i)) {
+            // If active, press and hold the corresponding key
+            keyboard_press_and_hold(key);
+        } else {
+            // If not active, release the corresponding key
+            keyboard_release(key);
+        }
+    }
+}
+
 static void test(void) {
+    static uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
+
     // usb comms test
     while (1) {
         tud_task();
