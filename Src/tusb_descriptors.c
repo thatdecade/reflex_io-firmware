@@ -46,18 +46,11 @@
 #define TUSB_ENDPOINT_DESCRIPTOR(endpoint_address, bmAttributes, max_packet_size, interval) \
     7, TUSB_DESC_ENDPOINT, (endpoint_address), (bmAttributes), ((max_packet_size) & 0xFF), (((max_packet_size) >> 8) & 0xFF), (interval)
 
-typedef enum {
-    device_info_string_language = 0,
-    device_info_string_manufacturer,
-    device_info_string_product,
-    device_info_string_serial_number,
-    device_info_string_second_interface,
-} device_info_string_index_e;
-
 //--------------------------------------------------------------------+
 // Device Descriptors
 //--------------------------------------------------------------------+
-tusb_desc_device_t const desc_device = {
+// Device descriptor for the Dance Pad
+tusb_desc_device_t const desc_device_dance_pad = {
     .bLength            = sizeof(tusb_desc_device_t),
     .bDescriptorType    = TUSB_DESC_DEVICE,
     .bcdUSB             = 0x0200,
@@ -65,19 +58,15 @@ tusb_desc_device_t const desc_device = {
     .bDeviceSubClass    = 0x00,
     .bDeviceProtocol    = 0x00,
     .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
-
     .idVendor           = USBD_VID,
-    .idProduct          = USBD_PID_FS,
+    .idProduct          = USBD_PID_FS, // same or different PID as desired
     .bcdDevice          = 0x0200,
-
-    .iManufacturer      = info_string_manufacturer,
-    .iProduct           = info_string_product,
-    .iSerialNumber      = info_string_serial_number,
-
+    .iManufacturer      = 0x01,
+    .iProduct           = 0x02,        // Points to "RE:Flex Dance Pad"
+    .iSerialNumber      = 0x03,
     .bNumConfigurations = 0x01
 };
 
- 
 // Invoked when received GET DEVICE DESCRIPTOR
 // Application return pointer to descriptor
 uint8_t const * tud_descriptor_device_cb(void) {
@@ -175,12 +164,12 @@ uint8_t const * tud_descriptor_configuration_cb(uint8_t index) {
 // String Descriptors
 //--------------------------------------------------------------------+
 
-static const char* device_info_string [] = {
-    (const char[]) { 0x09, 0x04 },   // 0: Supported Language (English 0x0409)
-    "Impulse Creations, Ltd.",       // 1: Manufacturer
-    "RE:Flex Dance Pad",             // 2: Product (composite device visible in Device Manager)
-    "123456",                        // 3: Serial Number (runtime generated)
-    "RE:Flex Keyboard"               // 4: Keyboard interface (for internal use)
+static const char* string_desc_arr [] = {
+    (const char[]) { 0x09, 0x04 },           // 0: Supported Language (English 0x0409)
+    "Impulse Creations, Ltd.",               // 1: Manufacturer
+    "RE:Flex Dance Pad",                     // 2: Product
+    "123456",                                // 3: Serial Number (runtime generated)
+    "RE:Flex Keyboard"                       // 4: Keyboard interface (internal use)
 };
 
 // Converts a uint32_t into 8 characters representing the hexadecimal
@@ -214,16 +203,17 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
 
     uint8_t chr_count;
 
-    if (index == device_info_string_language) {
+    if (index == 0) {
 
         // Copy supported language bytes
-        memcpy(&_desc_str[1], device_info_string[device_info_string_language], 2);
+        memcpy(&_desc_str[1], string_desc_arr[0], 2);
         chr_count = 1;
       
-    } else if (index == device_info_string_serial_number) {
+    } else if (index == 3) {
 
         // Derive serial number
         uint32_t serial0, serial1, serial2;
+
         serial0 = *(uint32_t *) UID_BASE;
         serial1 = *(uint32_t *) (UID_BASE + 4);
         serial2 = *(uint32_t *) (UID_BASE + 8);
@@ -237,11 +227,11 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
 
         // Convert ASCII string into UTF-16
         // Prevent index out of bounds access
-        if (index >= sizeof(device_info_string) / sizeof(device_info_string[0])) {
+        if (index >= sizeof(string_desc_arr) / sizeof(string_desc_arr[0])) {
             return NULL;
         }
 
-        const char* str = device_info_string[index];
+        const char* str = string_desc_arr[index];
 
         // Cap at max char
         chr_count = strlen(str);
@@ -253,6 +243,9 @@ uint16_t const* tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     }
 
     // first byte is length (including header), second byte is string type
-    _desc_str[0] = (TUSB_DESC_STRING << 8) | (2 * chr_count + 2);
+    _desc_str[0] = (TUSB_DESC_STRING << 8 ) | (2 * chr_count + 2);
+
     return _desc_str;
 }
+ 
+ 
