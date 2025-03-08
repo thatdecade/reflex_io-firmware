@@ -128,40 +128,9 @@ static void init(void) {
     DBG_LED1_ON();
 }
 
-
-#define BUTTON_PRESS_TIMING   30000   // 30 seconds delay
-
-void process_keyboard_demo(void) {
-    if (!tud_mounted()) return;
-
-    // Fail-Safe: If LED data has been received, the keyboard interface remains disabled.
-    if (host_connected) return;
-
-    // Fail-Safe: Disable keyboard for the first 10 seconds after power on.
-    if (HAL_GetTick() < 10000) return;
-
-    uint32_t current_time = HAL_GetTick();
-    static bool sendUp = true;
-    static uint32_t last_key_time = 0;
-
-    if ((current_time - last_key_time) >= BUTTON_PRESS_TIMING) {
-        if (sendUp) {
-            keyboard_press_and_release(HID_KEY_ARROW_UP);
-        } else {
-            keyboard_press_and_release(HID_KEY_ARROW_DOWN);
-        }
-        sendUp = !sendUp;
-        last_key_time = current_time;
-    }
-}
-
-
 static void run(void) {
     send_request_sensors();
     
-    // TBD: keyboard demo: key_state toggles key press/release.
-    static uint8_t key_state = 0;
-    static uint32_t current_time = 0;
     uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
     
     while (1) {
@@ -176,7 +145,7 @@ static void run(void) {
                 case Command_Request_Sensors:
                     // Currently Request_Sensors is the only command that
                     // responds with data from the panel board
-                    process_sensor_data(resp, &usb_sensor_buffer);
+                    process_sensor_data(resp, usb_sensor_buffer);
                     break;
             }
         }
@@ -194,7 +163,7 @@ static void run(void) {
         // Let TinyUSB process its interrupt flags
         tud_task();
         
-        if auto_calibrate_sensors()
+        if (auto_calibrate_sensors())
         {
             // Process key events based on pad activation history.
     	    keyboard_task(); //TBD
@@ -225,7 +194,7 @@ static void test(void) {
     while (1) {
         tud_task();
 
-        send_sensor_update_usb();
+        send_sensor_update_usb(usb_sensor_buffer);
         for (uint8_t i = 0; i < 32; i++) {
             usb_sensor_buffer[i] = i;
         }
