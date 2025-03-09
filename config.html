@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Re:Flex Manual Calibration</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    #status {
+      margin: 10px;
+      font-weight: bold;
+    }
+    .padSection {
+      border: 1px solid #ccc;
+      display: inline-block;
+      margin: 10px;
+      padding: 10px;
+    }
+    .sensorTable {
+      display: table;
+      margin: 10px auto;
+      border-collapse: collapse;
+      width: 200px;
+    }
+    .sensorRow {
+      display: table-row;
+    }
+    .sensorCell {
+      display: table-cell;
+      border: 1px solid #aaa;
+      padding: 5px;
+      vertical-align: middle;
+    }
+    .bar {
+      height: 15px;
+      background-color: #4CAF50;
+      width: 0%;
+    }
+    .sensorValue {
+      font-size: 12px;
+    }
+    .sliderContainer {
+      margin-top: 10px;
+    }
+    input[type="range"] {
+      width: 80%;
+    }
+    button {
+      margin: 5px;
+      padding: 8px 12px;
+      font-size: 14px;
+    }
+    #instructions {
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: left;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Re:Flex Manual Calibration</h1>
+  
+  <div id="instructions">
+    <p>
+      Welcome to the Re:Flex Manual Calibration page. Here you can connect your device, view its sensor readings, and adjust sensor thresholds manually.
+    </p>
+    <p><strong>How It Works:</strong></p>
+    <ol>
+      <li>
+        <strong>Connect:</strong> Click the "Connect to HID Device" button to choose and connect your device.
+      </li>
+      <li>
+        <strong>View Sensor Data:</strong> Once connected, the sensor readings and calibration controls will appear.
+      </li>
+      <li>
+        <strong>Calibration Mode:</strong>
+        <ul>
+          <li>Status from device.</li>
+          <li>Must be enabled to save calibration.</li>
+          <li><b>Requires updated firmware</b>.</li>
+        </ul>
+      </li>
+      <!-- Commented out auto calibration -->
+      <!--<li>
+        <strong>Auto Calibration:</strong>
+        <ul>
+          <li>Click the "Auto Calibration" to start a wizard.</li>
+          <li><b>Requires updated firmware</b>.</li>
+        </ul>
+      </li>-->
+      <li>
+        <strong>Manual Calibration:</strong>
+        <ul>
+          <li>Click the "Manual Calibration" button to show a slider.</li>
+          <li>Move the slider to change the sensor threshold value for that pad.</li>
+          <li><b>Requires updated firmware</b>.</li>
+        </ul>
+      </li>
+    </ol>
+    <p>
+      This simple interface lets you monitor your device and adjust its performance in real time.
+    </p>
+  </div>
+  
+  <div id="status">Not connected</div>
+  <button id="connectButton">Connect to HID Device</button>
+  
+  <div id="padContainer" style="display:none;">
+    <!-- For each pad, display sensor bargraphs and manual calibration controls -->
+    <div class="padSection" id="padSection0">
+      <h2>Pad 0</h2>
+      <div class="sensorTable" id="sensorTable0">
+        <div class="sensorRow">
+          <div class="sensorCell" id="pad0_sensor0">
+            <div class="bar" id="bar0"></div>
+            <div class="sensorValue" id="value0">0</div>
+          </div>
+          <div class="sensorCell" id="pad0_sensor1">
+            <div class="bar" id="bar1"></div>
+            <div class="sensorValue" id="value1">0</div>
+          </div>
+          <div class="sensorCell" id="pad0_sensor2">
+            <div class="bar" id="bar2"></div>
+            <div class="sensorValue" id="value2">0</div>
+          </div>
+          <div class="sensorCell" id="pad0_sensor3">
+            <div class="bar" id="bar3"></div>
+            <div class="sensorValue" id="value3">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <!-- Commented out auto calibration -->
+        <!-- <button class="autoCalibButton" data-pad="0">Start Auto Calibration</button> -->
+        <button class="manualCalibButton" data-pad="0">Manual Calibration</button>
+      </div>
+      <div class="sliderContainer" id="sliderContainer0" style="display:none;">
+        <label>Threshold: <span id="sliderValue0">500</span></label>
+        <input type="range" min="0" max="2000" value="500" class="thresholdSlider" data-pad="0">
+      </div>
+      <div class="padStatus" id="padStatus0">Status: N/A</div>
+    </div>
+    <!-- Repeat similar sections for Pad 1, Pad 2, and Pad 3 -->
+    <!-- For brevity, only Pad 0 is shown here -->
+  </div>
+
+  <script>
+    // Replace these with your device's actual vendorId and productId.
+    const filters = [
+      { vendorId: 0x1234, productId: 0x5678 }
+    ];
+    
+    // Precomputed magic packets for entering/exiting config mode.
+    // (These should match the values in config_mode.c on the device.)
+    const enterConfigMagic = "b6da3dc8904aae1587f7ee9913c8bc5f4e616d7b7505c4b36220c9a7841866d1872782b87caae1bf41c001c457d4e1e3d54b5db6a6c16768a615735f43c95ab3";
+    const exitConfigMagic  = "7f5455b20d201105e64b9852cf4911475cefae3d39bde6baa12d69b14df3c61d71ffbc33091fd41034e545b0fae189dafc3a32dfe97a8dd6b7238b33bdd65ea6";
+    
+    let device;
+    let configMode = false;
+    let latestSensorData = null; // 64-byte incoming report buffer
+    
+    // Called when "Connect" button is pressed.
+    document.getElementById('connectButton').addEventListener('click', async () => {
+      try {
+        const devices = await navigator.hid.requestDevice({ filters });
+        if (devices.length === 0) {
+          updateStatus("No device selected.");
+          return;
+        }
+        device = devices[0];
+        await device.open();
+        updateStatus("Device connected: " + device.productName);
+        document.getElementById('padContainer').style.display = "block";
+        
+        device.addEventListener('inputreport', event => {
+          const { data } = event;
+          // Convert data to hex string for magic-checking.
+          let hex = "";
+          for (let i = 0; i < data.byteLength; i++) {
+            let h = data.getUint8(i).toString(16).padStart(2, '0');
+            hex += h;
+          }
+          // If not in config mode, check for magic signatures.
+          if (!configMode) {
+            if (hex === enterConfigMagic) {
+              updateStatus("Entered Config Mode");
+              configMode = true;
+              return; // Skip normal LED packet processing.
+            }
+          } else {
+            if (hex === exitConfigMagic) {
+              updateStatus("Exited Config Mode");
+              configMode = false;
+              return;
+            }
+          }
+          // When not in config mode, sensor data packets are processed normally.
+          latestSensorData = new Uint8Array(data.buffer);
+          // (In a full implementation, update sensor bargraphs here.)
+        });
+      } catch (error) {
+        console.error(error);
+        updateStatus("Error: " + error);
+      }
+    });
+    
+    function updateStatus(msg) {
+      document.getElementById('status').textContent = msg;
+    }
+    
+    // Toggle slider visibility for manual calibration.
+    document.querySelectorAll(".manualCalibButton").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        let pad = e.target.getAttribute("data-pad");
+        let container = document.getElementById("sliderContainer" + pad);
+        container.style.display = (container.style.display === "none" || container.style.display === "") ? "block" : "none";
+      });
+    });
+    
+    // When slider value changes, send a manual calibration update packet.
+    document.querySelectorAll(".thresholdSlider").forEach(slider => {
+      slider.addEventListener("input", async (e) => {
+        let pad = e.target.getAttribute("data-pad");
+        let value = parseInt(e.target.value);
+        document.getElementById("sliderValue" + pad).textContent = value;
+        let packet = new Uint8Array(64);
+        packet[0] = 0xF2; // Manual Calibration Update command ID.
+        packet[1] = parseInt(pad);
+        // Store 16-bit threshold (little-endian) in bytes 2-3.
+        packet[2] = value & 0xFF;
+        packet[3] = (value >> 8) & 0xFF;
+        try {
+          await device.sendReport(0, packet);
+          console.log("Manual threshold for pad " + pad + " set to " + value);
+        } catch (err) {
+          console.error("Error updating manual threshold: ", err);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

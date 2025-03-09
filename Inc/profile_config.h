@@ -3,25 +3,24 @@
 
 #include "eeprom_emul.h"
 #include <stdint.h>
+#include <stdbool.h>
 
-/**
-  * @brief  Saves the profile configuration.
-  *         The caller provides a pointer to 63 bytes (e.g. usb_buffer + 1).
-  *         A checksum is computed and appended as the 64th byte.
-  *
-  * @param  data: Pointer to 63 bytes of configuration data.
-  * @retval HAL status.
-  */
+#define DEFAULT_SENSOR_THRESHOLD   500  // the amount above idle needed to consider the pad pressed
+#define DEFAULT_SENSOR_HYSTERESIS   50  // to avoid rapid toggling, once active the pad will remain active until sensor reading falls below (THRESHOLD - HYSTERESIS)
+#define DEFAULT_SENSOR_COOLDOWN     60  // minimum time (ms) between state transitions
+
+typedef struct {
+    uint8_t manual_flag;                 // Bitmask: bit0 for pad0, bit1 for pad1, etc.
+    uint16_t sensor_threshold[4];        // Per-pad threshold
+    uint16_t sensor_hysteresis[4];       // Per-pad hysteresis
+    uint16_t sensor_cooldown[4];         // Per-pad cooldown in ms
+} ProfileConfig;
+
+void profile_config_init(void);
+bool get_config_mode(void);
+bool check_LED_packet_for_config(uint8_t * packet);
+
 HAL_StatusTypeDef profile_config_save(const uint8_t *data);
-
-/**
-  * @brief  Reads the profile configuration.
-  *         The stored 64-byte slot is read; the checksum is recalculated and verified.
-  *         If the checksum is valid, the first 63 bytes are returned.
-  *         Otherwise, a default 63-byte packet is copied.
-  *
-  * @param  data: Pointer to a 63-byte buffer where the configuration will be stored.
-  */
-void profile_config_read(uint8_t *data);
+void profile_config_get(ProfileConfig *data);
 
 #endif /* PROFILE_CONFIG_H */

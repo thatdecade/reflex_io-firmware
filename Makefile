@@ -49,6 +49,7 @@ Src/system_stm32f3xx.c \
 Src/uart.c \
 Src/keyboard.c \
 Src/sensors.c \
+Src/profile_config.c \
 Src/tusb_descriptors.c \
 Src/tusb_hid_impl.c \
 Drivers/STM32F3xx_HAL_Driver/Src/stm32f3xx_hal_pcd.c \
