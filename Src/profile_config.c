@@ -1,5 +1,6 @@
 #include "profile_config.h"
 #include <string.h>
+#include "eeprom_emul.h"
 
 // Magic packets are precompiled from this python code:
 /* 

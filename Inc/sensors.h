@@ -12,5 +12,6 @@
 void send_request_sensors(void);
 bool auto_calibrate_sensors(void);
 void process_sensor_data_with_config(Response * resp, uint8_t * usb_buffer);
+bool sensor_pad_is_active(uint8_t pad);
 
 #endif // SENSORS_H

@@ -20,7 +20,9 @@ void profile_config_init(void);
 bool get_config_mode(void);
 bool check_LED_packet_for_config(uint8_t * packet);
 
-HAL_StatusTypeDef profile_config_save(const uint8_t *data);
+HAL_StatusTypeDef profile_config_save(void);
 void profile_config_get(ProfileConfig *data);
+void profile_config_read(void);
+
 
 #endif /* PROFILE_CONFIG_H */

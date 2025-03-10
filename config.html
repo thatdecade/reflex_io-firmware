@@ -18,12 +18,14 @@
       display: inline-block;
       margin: 10px;
       padding: 10px;
+      vertical-align: top;
+      width: 270px;
     }
     .sensorTable {
       display: table;
       margin: 10px auto;
       border-collapse: collapse;
-      width: 200px;
+      width: 100%;
     }
     .sensorRow {
       display: table-row;
@@ -34,13 +36,9 @@
       padding: 5px;
       vertical-align: middle;
     }
-    .bar {
-      height: 15px;
-      background-color: #4CAF50;
-      width: 0%;
-    }
     .sensorValue {
       font-size: 12px;
+      margin-top: 5px;
     }
     .sliderContainer {
       margin-top: 10px;
@@ -60,8 +58,10 @@
       margin-bottom: 20px;
       text-align: left;
       display: inline-block;
+      width: 90%;
     }
   </style>
+  <script src="chart.umd.js"></script>
 </head>
 <body>
   <h1>Re:Flex Manual Calibration</h1>
@@ -76,7 +76,7 @@
         <strong>Connect:</strong> Click the "Connect to HID Device" button to choose and connect your device.
       </li>
       <li>
-        <strong>View Sensor Data:</strong> Once connected, the sensor readings and calibration controls will appear.
+        <strong>View Sensor Data:</strong> Once connected, sensor readings for all four pads (each with 4 sensors) will be displayed.
       </li>
       <li>
         <strong>Calibration Mode:</strong>
@@ -110,28 +110,29 @@
   
   <div id="status">Not connected</div>
   <button id="connectButton">Connect to HID Device</button>
+  <button id="disconnectButton" style="display:none;">Disconnect Device</button>
   
   <div id="padContainer" style="display:none;">
-    <!-- For each pad, display sensor bargraphs and manual calibration controls -->
+    <!-- Pad 0 -->
     <div class="padSection" id="padSection0">
       <h2>Pad 0</h2>
       <div class="sensorTable" id="sensorTable0">
         <div class="sensorRow">
           <div class="sensorCell" id="pad0_sensor0">
-            <div class="bar" id="bar0"></div>
-            <div class="sensorValue" id="value0">0</div>
+            <canvas id="chart00" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value00">0</div>
           </div>
           <div class="sensorCell" id="pad0_sensor1">
-            <div class="bar" id="bar1"></div>
-            <div class="sensorValue" id="value1">0</div>
+            <canvas id="chart01" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value01">0</div>
           </div>
           <div class="sensorCell" id="pad0_sensor2">
-            <div class="bar" id="bar2"></div>
-            <div class="sensorValue" id="value2">0</div>
+            <canvas id="chart02" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value02">0</div>
           </div>
           <div class="sensorCell" id="pad0_sensor3">
-            <div class="bar" id="bar3"></div>
-            <div class="sensorValue" id="value3">0</div>
+            <canvas id="chart03" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value03">0</div>
           </div>
         </div>
       </div>
@@ -146,80 +147,297 @@
       </div>
       <div class="padStatus" id="padStatus0">Status: N/A</div>
     </div>
-    <!-- Repeat similar sections for Pad 1, Pad 2, and Pad 3 -->
-    <!-- For brevity, only Pad 0 is shown here -->
+    <!-- Pad 1 -->
+    <div class="padSection" id="padSection1">
+      <h2>Pad 1</h2>
+      <div class="sensorTable" id="sensorTable1">
+        <div class="sensorRow">
+          <div class="sensorCell" id="pad1_sensor0">
+            <canvas id="chart10" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value10">0</div>
+          </div>
+          <div class="sensorCell" id="pad1_sensor1">
+            <canvas id="chart11" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value11">0</div>
+          </div>
+          <div class="sensorCell" id="pad1_sensor2">
+            <canvas id="chart12" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value12">0</div>
+          </div>
+          <div class="sensorCell" id="pad1_sensor3">
+            <canvas id="chart13" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value13">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="manualCalibButton" data-pad="1">Manual Calibration</button>
+      </div>
+      <div class="sliderContainer" id="sliderContainer1" style="display:none;">
+        <label>Threshold: <span id="sliderValue1">500</span></label>
+        <input type="range" min="0" max="2000" value="500" class="thresholdSlider" data-pad="1">
+      </div>
+      <div class="padStatus" id="padStatus1">Status: N/A</div>
+    </div>
+    <!-- Pad 2 -->
+    <div class="padSection" id="padSection2">
+      <h2>Pad 2</h2>
+      <div class="sensorTable" id="sensorTable2">
+        <div class="sensorRow">
+          <div class="sensorCell" id="pad2_sensor0">
+            <canvas id="chart20" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value20">0</div>
+          </div>
+          <div class="sensorCell" id="pad2_sensor1">
+            <canvas id="chart21" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value21">0</div>
+          </div>
+          <div class="sensorCell" id="pad2_sensor2">
+            <canvas id="chart22" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value22">0</div>
+          </div>
+          <div class="sensorCell" id="pad2_sensor3">
+            <canvas id="chart23" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value23">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="manualCalibButton" data-pad="2">Manual Calibration</button>
+      </div>
+      <div class="sliderContainer" id="sliderContainer2" style="display:none;">
+        <label>Threshold: <span id="sliderValue2">500</span></label>
+        <input type="range" min="0" max="2000" value="500" class="thresholdSlider" data-pad="2">
+      </div>
+      <div class="padStatus" id="padStatus2">Status: N/A</div>
+    </div>
+    <!-- Pad 3 -->
+    <div class="padSection" id="padSection3">
+      <h2>Pad 3</h2>
+      <div class="sensorTable" id="sensorTable3">
+        <div class="sensorRow">
+          <div class="sensorCell" id="pad3_sensor0">
+            <canvas id="chart30" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value30">0</div>
+          </div>
+          <div class="sensorCell" id="pad3_sensor1">
+            <canvas id="chart31" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value31">0</div>
+          </div>
+          <div class="sensorCell" id="pad3_sensor2">
+            <canvas id="chart32" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value32">0</div>
+          </div>
+          <div class="sensorCell" id="pad3_sensor3">
+            <canvas id="chart33" width="60" height="150"></canvas>
+            <div class="sensorValue" id="value33">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="manualCalibButton" data-pad="3">Manual Calibration</button>
+      </div>
+      <div class="sliderContainer" id="sliderContainer3" style="display:none;">
+        <label>Threshold: <span id="sliderValue3">500</span></label>
+        <input type="range" min="0" max="2000" value="500" class="thresholdSlider" data-pad="3">
+      </div>
+      <div class="padStatus" id="padStatus3">Status: N/A</div>
+    </div>
   </div>
 
   <script>
-    // Replace these with your device's actual vendorId and productId.
     const filters = [
-      { vendorId: 0x1234, productId: 0x5678 }
+      { vendorId: 0x0483, productId: 0x5750 }
     ];
     
     // Precomputed magic packets for entering/exiting config mode.
-    // (These should match the values in config_mode.c on the device.)
     const enterConfigMagic = "b6da3dc8904aae1587f7ee9913c8bc5f4e616d7b7505c4b36220c9a7841866d1872782b87caae1bf41c001c457d4e1e3d54b5db6a6c16768a615735f43c95ab3";
     const exitConfigMagic  = "7f5455b20d201105e64b9852cf4911475cefae3d39bde6baa12d69b14df3c61d71ffbc33091fd41034e545b0fae189dafc3a32dfe97a8dd6b7238b33bdd65ea6";
     
     let device;
-    let configMode = false;
     let latestSensorData = null; // 64-byte incoming report buffer
     
-    // Called when "Connect" button is pressed.
+    // Global chart instances array: charts[pad][sensor]
+    let charts = [[], [], [], []];
+    
+    // Global min and max sensor values observed, default to 200 and 2000.
+    let globalMin = 200;
+    let globalMax = 2000;
+    
+    // Reference for the input report event listener so we can remove it if needed.
+    let inputReportHandler;
+    
+    // Initialize Chart.js charts for each sensor.
+    function initCharts() {
+      console.log("Initializing Chart.js charts...");
+      for (let pad = 0; pad < 4; pad++) {
+        for (let sensor = 0; sensor < 4; sensor++) {
+          const canvasId = `chart${pad}${sensor}`;
+          const ctx = document.getElementById(canvasId).getContext('2d');
+          charts[pad][sensor] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: [''],
+              datasets: [{
+                label: 'Value',
+                data: [0],
+                backgroundColor: '#4CAF50'
+              }]
+            },
+            options: {
+              animation: { duration: 300 },
+              responsive: false,
+              scales: {
+                y: {
+                  min: globalMin,
+                  max: globalMax,
+                  ticks: { stepSize: Math.floor((globalMax - globalMin) / 5) }
+                },
+                x: { display: false }
+              },
+              plugins: { legend: { display: false } }
+            }
+          });
+          console.log(`Initialized Chart for pad ${pad}, sensor ${sensor}`);
+        }
+      }
+    }
+    
+    // Initialize charts after the DOM is loaded.
+    window.addEventListener('DOMContentLoaded', (event) => {
+      console.log("DOM fully loaded. Initializing charts.");
+      initCharts();
+    });
+    
+    // Connect to device.
     document.getElementById('connectButton').addEventListener('click', async () => {
+      console.log("Connect button clicked. Requesting device...");
       try {
         const devices = await navigator.hid.requestDevice({ filters });
+        console.log("Devices returned:", devices);
         if (devices.length === 0) {
           updateStatus("No device selected.");
+          console.log("No device selected by the user.");
           return;
         }
         device = devices[0];
+        console.log("Selected device:", device);
         await device.open();
+        console.log("Device opened successfully:", device.productName);
         updateStatus("Device connected: " + device.productName);
         document.getElementById('padContainer').style.display = "block";
+        document.getElementById('disconnectButton').style.display = "inline-block";
         
-        device.addEventListener('inputreport', event => {
+        // Define the input report handler
+        inputReportHandler = event => {
+          console.log("Input report received.");
           const { data } = event;
-          // Convert data to hex string for magic-checking.
-          let hex = "";
-          for (let i = 0; i < data.byteLength; i++) {
-            let h = data.getUint8(i).toString(16).padStart(2, '0');
-            hex += h;
+          latestSensorData = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+          console.log("Raw sensor data:", latestSensorData);
+          
+          if (latestSensorData.length < 32) {
+            console.error("Sensor data length too short: " + latestSensorData.length);
+            return;
           }
-          // If not in config mode, check for magic signatures.
-          if (!configMode) {
-            if (hex === enterConfigMagic) {
-              updateStatus("Entered Config Mode");
-              configMode = true;
-              return; // Skip normal LED packet processing.
+          
+          // Unpack 16 little-endian sensor readings.
+          const sensorValues = [];
+          for (let i = 0; i < 16; i++) {
+            const low = latestSensorData[2 * i];
+            const high = latestSensorData[2 * i + 1];
+            sensorValues.push(low + (high << 8));
+          }
+          console.log("Unpacked sensor values:", sensorValues.join(", "));
+          
+          console.log("Previous global min:", globalMin, "global max:", globalMax);
+          sensorValues.forEach(value => {
+            if (value < globalMin) {
+              console.log(`New global min found: ${value} (old: ${globalMin})`);
+              globalMin = value;
             }
-          } else {
-            if (hex === exitConfigMagic) {
-              updateStatus("Exited Config Mode");
-              configMode = false;
-              return;
+            if (value > globalMax) {
+              console.log(`New global max found: ${value} (old: ${globalMax})`);
+              globalMax = value;
+            }
+          });
+          console.log("Updated global min:", globalMin, "global max:", globalMax);
+          
+          // Update charts and sensor value texts.
+          for (let pad = 0; pad < 4; pad++) {
+            for (let sensor = 0; sensor < 4; sensor++) {
+              const idx = pad * 4 + sensor;
+              const sensorValue = sensorValues[idx];
+              const valueElem = document.getElementById(`value${pad}${sensor}`);
+              if (valueElem) {
+                valueElem.textContent = sensorValue;
+              }
+              if (charts[pad] && charts[pad][sensor]) {
+                let chart = charts[pad][sensor];
+                chart.data.datasets[0].data = [sensorValue];
+                chart.options.scales.y.min = globalMin;
+                chart.options.scales.y.max = globalMax;
+                chart.options.scales.y.ticks.stepSize = Math.floor((globalMax - globalMin) / 5);
+                chart.update();
+                console.log(`Updated chart for pad ${pad} sensor ${sensor} with value: ${sensorValue}`);
+              } else {
+                console.error(`Chart not initialized for pad ${pad} sensor ${sensor}`);
+              }
             }
           }
-          // When not in config mode, sensor data packets are processed normally.
-          latestSensorData = new Uint8Array(data.buffer);
-          // (In a full implementation, update sensor bargraphs here.)
-        });
+        };
+        
+        device.addEventListener('inputreport', inputReportHandler);
+        console.log("Input report event listener added.");
+        
       } catch (error) {
-        console.error(error);
+        console.error("Error during connection:", error);
         updateStatus("Error: " + error);
+      }
+    });
+    
+    // Disconnect from device.
+    document.getElementById('disconnectButton').addEventListener('click', async () => {
+      console.log("Disconnect button clicked.");
+      if (device) {
+        try {
+          // Remove the input report listener.
+          if (inputReportHandler) {
+            device.removeEventListener('inputreport', inputReportHandler);
+            console.log("Input report event listener removed.");
+          }
+          await device.close();
+          console.log("Device closed successfully.");
+          updateStatus("Device disconnected.");
+          device = null;
+          document.getElementById('padContainer').style.display = "none";
+          document.getElementById('disconnectButton').style.display = "none";
+        } catch (err) {
+          console.error("Error during disconnect:", err);
+          updateStatus("Error during disconnect: " + err);
+        }
+      } else {
+        console.warn("No device to disconnect.");
       }
     });
     
     function updateStatus(msg) {
       document.getElementById('status').textContent = msg;
+      console.log("Status updated:", msg);
     }
     
     // Toggle slider visibility for manual calibration.
     document.querySelectorAll(".manualCalibButton").forEach(btn => {
       btn.addEventListener("click", (e) => {
         let pad = e.target.getAttribute("data-pad");
+        console.log("Manual Calibration button clicked for pad", pad);
         let container = document.getElementById("sliderContainer" + pad);
-        container.style.display = (container.style.display === "none" || container.style.display === "") ? "block" : "none";
+        if (container.style.display === "none" || container.style.display === "") {
+          container.style.display = "block";
+          console.log("Slider for pad", pad, "is now visible.");
+        } else {
+          container.style.display = "none";
+          console.log("Slider for pad", pad, "is now hidden.");
+        }
       });
     });
     
@@ -229,17 +447,18 @@
         let pad = e.target.getAttribute("data-pad");
         let value = parseInt(e.target.value);
         document.getElementById("sliderValue" + pad).textContent = value;
+        console.log(`Slider input changed for pad ${pad}: new value ${value}`);
         let packet = new Uint8Array(64);
-        packet[0] = 0xF2; // Manual Calibration Update command ID.
+        packet[0] = 0xF2; // Manual Calibration Update command.
         packet[1] = parseInt(pad);
-        // Store 16-bit threshold (little-endian) in bytes 2-3.
         packet[2] = value & 0xFF;
         packet[3] = (value >> 8) & 0xFF;
+        console.log(`Constructed calibration packet for pad ${pad}:`, packet);
         try {
           await device.sendReport(0, packet);
-          console.log("Manual threshold for pad " + pad + " set to " + value);
+          console.log(`Manual calibration packet sent for pad ${pad} with threshold ${value}`);
         } catch (err) {
-          console.error("Error updating manual threshold: ", err);
+          console.error("Error updating manual threshold for pad", pad, ":", err);
         }
       });
     });
