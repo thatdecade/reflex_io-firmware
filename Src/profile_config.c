@@ -39,10 +39,12 @@ bool check_LED_packet_for_config(uint8_t * packet) {
 }
 
 ProfileConfig g_profile_config = {
-    .manual_flag = 0, // 0 = auto calibration; set bits for pads in manual mode.
+    .profile_version = CURRENT_PROFILE_VERSION,
+    .calibration_type = 0, // 0 = auto calibration; set bits for pads in manual mode.
     .sensor_threshold  = { DEFAULT_SENSOR_THRESHOLD,  DEFAULT_SENSOR_THRESHOLD,  DEFAULT_SENSOR_THRESHOLD,  DEFAULT_SENSOR_THRESHOLD },
-    .sensor_hysteresis = { DEFAULT_SENSOR_HYSTERESIS, DEFAULT_SENSOR_HYSTERESIS, DEFAULT_SENSOR_HYSTERESIS, DEFAULT_SENSOR_HYSTERESIS },
-    .sensor_cooldown   = { DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN },
+    .sensor_hysteresis = DEFAULT_SENSOR_HYSTERESIS,
+    .sensor_cooldown   = DEFAULT_SENSOR_COOLDOWN,
+    .keypress_key      = { DEFAULT_PANEL0_KEYPRESS,   DEFAULT_PANEL1_KEYPRESS,   DEFAULT_PANEL2_KEYPRESS,   DEFAULT_PANEL3_KEYPRESS },
 };
 
 void profile_config_init() {
@@ -55,13 +57,10 @@ void profile_config_get(ProfileConfig *data) {
 
 HAL_StatusTypeDef profile_config_save() {
     uint8_t data[64];
-    // Pack configuration data into 63 bytes (e.g., 1 byte manual_flag + 3*4*2 bytes = 25 bytes; pad rest with zeros).
-    data[0] = g_profile_config.manual_flag;
-    memcpy(&data[1], g_profile_config.sensor_threshold,                         4 * sizeof(uint16_t));
-    memcpy(&data[1 + 4 * sizeof(uint16_t)], g_profile_config.sensor_hysteresis, 4 * sizeof(uint16_t));
-    memcpy(&data[1 + 8 * sizeof(uint16_t)], g_profile_config.sensor_cooldown,   4 * sizeof(uint16_t));
+    // Pack configuration data into 63 bytes
+    memcpy(&data[0], &g_profile_config, sizeof(ProfileConfig));
     // Zero remaining bytes.
-    memset(&data[1 + 12 * sizeof(uint16_t)], 0, 63 - (1 + 12 * sizeof(uint16_t)));
+    memset(&data[1 + sizeof(ProfileConfig)], 0, 63 - (1 + sizeof(ProfileConfig)));
     
     uint8_t checksum = 0;
     for (int i = 0; i < 63; i++) {
@@ -78,18 +77,16 @@ void profile_config_read() {
     for (int i = 0; i < 63; i++) {
         checksum += data[i];
     }
-    if (checksum != data[63]) {
-        // On checksum error, load default values.
+    if ((checksum != data[63]) || (data[0] != CURRENT_PROFILE_VERSION)) {
+        // On checksum error or different version, load default values.
         g_profile_config = (ProfileConfig){
-            .manual_flag = 0,
+            .profile_version = CURRENT_PROFILE_VERSION,
+            .calibration_type = 0,
             .sensor_threshold  = { DEFAULT_SENSOR_THRESHOLD,  DEFAULT_SENSOR_THRESHOLD,  DEFAULT_SENSOR_THRESHOLD,  DEFAULT_SENSOR_THRESHOLD },
             .sensor_hysteresis = { DEFAULT_SENSOR_HYSTERESIS, DEFAULT_SENSOR_HYSTERESIS, DEFAULT_SENSOR_HYSTERESIS, DEFAULT_SENSOR_HYSTERESIS },
             .sensor_cooldown   = { DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN }
         };
     } else {
-        g_profile_config.manual_flag = data[0];
-        memcpy(g_profile_config.sensor_threshold, &data[1], 4 * sizeof(uint16_t));
-        memcpy(g_profile_config.sensor_hysteresis, &data[1 + 4 * sizeof(uint16_t)], 4 * sizeof(uint16_t));
-        memcpy(g_profile_config.sensor_cooldown, &data[1 + 8 * sizeof(uint16_t)], 4 * sizeof(uint16_t));
+        memcpy( &g_profile_config, &data[0],sizeof(ProfileConfig));
     }
 }

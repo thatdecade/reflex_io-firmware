@@ -20,7 +20,6 @@ static uint16_t pad_last_sum[NUM_PADS] = {0};        // Latest sensor sum readin
 #define CALIBRATION_DURATION_MS 2000
 
 void process_sensor_data_manual_method(Response * resp, uint8_t * usb_buffer);
-//void process_sensor_data_manual_auto(Response * resp, uint8_t * usb_buffer);
 
 uint16_t g_manual_threshold[NUM_PADS] = {
     DEFAULT_SENSOR_THRESHOLD, DEFAULT_SENSOR_THRESHOLD,
@@ -65,6 +64,7 @@ void send_request_sensors(void) {
 }
 
 void process_sensor_data_with_config(Response * resp, uint8_t * usb_buffer) {
+    // INDEX: Comport_Left=0, Down=1, Up=2, Right=3
     uint8_t pad_index = (uint8_t)resp->comport_id;
     if (pad_index >= NUM_PADS) return;
 
@@ -72,7 +72,7 @@ void process_sensor_data_with_config(Response * resp, uint8_t * usb_buffer) {
     profile_config_get(&profile_config);
 
     // Check if manual calibration is active for this pad.
-    if (profile_config.manual_flag & (1 << pad_index)) {
+    if (profile_config.calibration_type & (3 << (pad_index*2))) {
         // TBD: Move this to init, and profile updates, no need to read emulated eeprom continuously
         g_manual_threshold[pad_index]  = profile_config.sensor_threshold[pad_index];
         g_manual_hysteresis[pad_index] = profile_config.sensor_hysteresis[pad_index];
@@ -92,19 +92,26 @@ void process_sensor_data_manual_method(Response * resp, uint8_t * usb_buffer)
     if (resp->data_length < SENSOR_RESPONSE_LEN) return;
 
     uint8_t offset = pad_index * SENSOR_RESPONSE_LEN;
+
+    // First make a raw copy to send to the host PC
     for (uint8_t i = 0; i < resp->data_length; i++) {
         usb_buffer[offset + i] = resp->data[i];
     }
 
+    // Sum sensor readings
     uint16_t sensor_sum = 0;
     for (uint8_t i = 0; i < SENSOR_RESPONSE_LEN; i += 2) {
-        uint16_t reading = resp->data[i] | ((uint16_t)resp->data[i+1] << 8);
+        uint16_t reading = resp->data[i] | ((uint16_t)resp->data[i+1] << 8); // Assume little endian
         sensor_sum += reading;
     }
-    pad_last_sum[pad_index] = sensor_sum;
+    pad_last_sum[pad_index] = sensor_sum; // Save the sensor sum for calibration purposes.
+
+    // Compute the adjusted reading (subtract idle calibration)
     int32_t adjusted = (int32_t)sensor_sum - (int32_t)pad_idle[pad_index];
+
     uint32_t current_time = HAL_GetTick();
 
+    // If pad is not active, check if the adjusted value exceeds the threshold
     if (!pad_active[pad_index]) {
         if (adjusted >= g_manual_threshold[pad_index]) {
             if ((current_time - pad_last_activation[pad_index]) >= g_manual_cooldown[pad_index]) {
@@ -114,6 +121,8 @@ void process_sensor_data_manual_method(Response * resp, uint8_t * usb_buffer)
         }
     } else if (adjusted < (g_manual_threshold[pad_index] - g_manual_hysteresis[pad_index])) {
         pad_active[pad_index] = false;
+        
+        // Prevent multiple activations before cooldown
         pad_last_activation[pad_index] = current_time;
     }
 }

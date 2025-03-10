@@ -73,7 +73,14 @@ static inline void process_led_data(void) {
     static uint8_t led_buffer[LED_ARRAY_SIZE];
     static uint8_t previous_frame = 0xFF;
 
+    if (segments_received == COMPLETE_FRAME) {
+        DBG_LED3_ON();
+        segments_received = 0x0000;
+        send_commit_LEDs();
+    }
+
     uint8_t * packet = usb_get_packet();
+
     if (packet == NULL) {
         return;
     }
@@ -81,6 +88,9 @@ static inline void process_led_data(void) {
     // Check for Enter/Exit Config Mode magic packets.
         // In config mode, ignore normal LED data.
     if ( check_LED_packet_for_config(packet) || get_config_mode() ) return;
+
+    // LED data has been received so disable keyboard interface until power cycle.
+    host_connected = true;
 
     // Normal LED data processing if not in config mode.
     uint8_t header = packet[0];
@@ -119,7 +129,7 @@ static void init(void) {
     tusb_init();
     keyboard_begin(); 
 
-    profile_config_init(); //TBD, this should call sensors_init, which will than call profile_init
+    profile_config_init(); //TBD, change this to call sensors_init, which will than call profile_init
 
     DBG_LED1_ON();
 }
@@ -127,29 +137,41 @@ static void init(void) {
 static void run(void) {
     send_request_sensors();
     
-    static uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
+    uint8_t usb_sensor_buffer[USB_HID_PACKET_SIZE_BYTES];
     
     while (1) {
+        // Process any interrupt flags set since last loop
         msgbus_process_flags();
       
+        // If there's a new command response to process, do that
         if (msgbus_have_pending_response()) {
             Response * resp = msgbus_get_pending_response();
           
             switch (resp->request_command) {
                 case Command_Request_Sensors:
-                    // Instead of calling process_sensor_data_manual_method directly,
-                    // call the new function that reads the profile configuration.
+                    // Currently Request_Sensors is the only command that, responds with data from the panel board
                     process_sensor_data_with_config(resp, usb_sensor_buffer);
                     break;
             }
         }
+
+        // Send an update of the latest sensor readings over USB
         send_sensor_update_usb(usb_sensor_buffer);
+
+        // If we've received LED data over USB since last loop, process that,
+        // and send it where it's got to go
         process_led_data();
+
+        // Request more sensor updates, always
         send_request_sensors();
+        
+        // Let TinyUSB process its interrupt flags
         tud_task();
         
-        if (auto_calibrate_sensors()) {
-            keyboard_task();
+        if (auto_calibrate_sensors())
+        {
+            // Process key events based on pad activation history.
+    	    keyboard_task();
         }
     }
 }
