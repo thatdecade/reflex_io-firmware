@@ -20,8 +20,8 @@ typedef struct {
     uint8_t calibration_type;      // 2 bit mask: bit01 for pad0, bit23 for pad1, etc. 
     //types are 0b00 = No Calibration, 0b01 Manual Calibrated, 0b10 Auto Calibrated, 0b11 Reserved
     uint16_t sensor_threshold[4];  // Per-pad threshold
-    uint16_t sensor_hysteresis;    // Hysteresis
-    uint16_t sensor_cooldown;      // Coldown in ms
+    uint16_t sensor_hysteresis[4]; // Hysteresis
+    uint16_t sensor_cooldown[4];   // Coldown in ms
     uint8_t keypress_key[4];       // Per-pad key to press
 } ProfileConfig;
 

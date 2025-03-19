@@ -52,7 +52,9 @@ void profile_config_init() {
 }
 
 void profile_config_get(ProfileConfig *data) {
-    *data = g_profile_config;
+    if (data != NULL) {
+        *data = g_profile_config;
+    }
 }
 
 HAL_StatusTypeDef profile_config_save() {
@@ -87,6 +89,6 @@ void profile_config_read() {
             .sensor_cooldown   = { DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN,   DEFAULT_SENSOR_COOLDOWN }
         };
     } else {
-        memcpy( &g_profile_config, &data[0],sizeof(ProfileConfig));
+        memcpy( &g_profile_config, &data[0], sizeof(ProfileConfig));
     }
 }

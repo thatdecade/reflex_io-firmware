@@ -1,2 +1,7 @@
 build/
 .vscode/.cortex-debug.*
+/Debug
+/build
+/Compiler and BSP
+/.visualgdb
+/.vs
