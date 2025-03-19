@@ -61,7 +61,6 @@ Extract GNU ARM Embedded Toolchain (9-2019-q4-major) and Strawberry Perl (5.38.0
      git checkout tags/v2.0
      mingw32-make -j8 all TARGET=io_firmware OPT="-O2"
      ```
-   - Ensure that your environment paths are correctly set so that the build uses the correct versions of the compiler and Perl.
 
 ## Verification
 
@@ -71,4 +70,4 @@ After the build completes, you can use the built‐in Windows file comparison to
 fc /b build\io_firmware.hex release\io_firmware.hex
 ```
 
-If the files are identical, the command will report "no differences encountered." Otherwise, it will list the differing bytes.
+Verify that the files are identical.  The above command should report "no differences encountered." 
