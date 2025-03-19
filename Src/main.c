@@ -299,6 +299,12 @@ static void init_system_clock() {
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
         error_panic(Error_HAL_RCC_PeriphClockConfig);
     }
+    
+    // Since we changed the PLL, the sys clock is now 9x faster.  We need to reinit the SysTick timer's tick period using the new SystemCoreClock.
+    // This is needed so HAL_GetTick() increments every 1ms.
+    if (HAL_InitTick(TICK_INT_PRIORITY) != HAL_OK) {
+        error_panic(Error_HAL_RCC_ClockConfig); 
+    }
 }
 
 static void init_gpio() {
